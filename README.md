@@ -1,0 +1,1 @@
+# zbx_plugin_mysql
