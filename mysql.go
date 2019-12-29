@@ -14,7 +14,7 @@ import (
 //	"strings"
 //	"time"
 	"zabbix.com/pkg/plugin"
-	"zabbix.com/pkg/std"
+//	"zabbix.com/pkg/std"
     "encoding/json"
     "database/sql"
     _ "github.com/go-sql-driver/mysql"
@@ -107,7 +107,7 @@ func get(config config) (response string, err error) {
         panic(err)
     }
 
-    fmt.Printf("%q", jsonData)
+    return fmt.Printf("%q", jsonData), nil
 }
 
 
