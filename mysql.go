@@ -30,6 +30,11 @@ var impl Plugin
 
 const pluginName = "MySQL"
 
+type config struct {
+	ConnString string
+	Request    string
+}
+
 // Export implements the Exporter interface.
 func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider) (result interface{}, err error) {
 	if len(params) < 1 {
