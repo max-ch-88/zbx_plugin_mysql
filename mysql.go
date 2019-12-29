@@ -107,7 +107,7 @@ func get(config config) (response string, err error) {
         panic(err)
     }
 
-    return fmt.Printf("%q", string(jsonData)), nil
+	return fmt.Sprintf("%q", jsonData), nil
 }
 
 // init registers metrics.
