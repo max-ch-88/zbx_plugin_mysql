@@ -7,12 +7,14 @@
 package mysql
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"zabbix.com/pkg/plugin"
-	"database/sql"
+	"strings"
+
 	_ "github.com/go-sql-driver/mysql"
+	"zabbix.com/pkg/plugin"
 )
 
 // Plugin inherits plugin.Base and store plugin-specific data.
@@ -93,6 +95,13 @@ func get(config config, jsonFlag bool) (response string, err error) {
 		//log.Fatal(err)
 		panic(err)
 	}
+	// if err != nil {
+    //     return nil, err
+    // }
+    if err = db.Ping(); err != nil {
+        // return nil, err
+		panic(err)
+    }
 
 	rows, err := db.Query(config.Request)
 	if err != nil {
@@ -126,8 +135,10 @@ func get(config config, jsonFlag bool) (response string, err error) {
 		for i := 0; i < count; i++ {
 			valuePtrs[i] = &values[i]
 		}
+
 		rows.Scan(valuePtrs...)
 		entry := make(map[string]interface{})
+
 		for i, col := range columns {
 			var v interface{}
 			val := values[i]
@@ -137,8 +148,10 @@ func get(config config, jsonFlag bool) (response string, err error) {
 			} else {
 				v = val
 			}
+			col = "#" + strings.ToUpper(col)
 			entry[col] = v
 		}
+
 		tableData = append(tableData, entry)
 	}
 
