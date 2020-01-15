@@ -11,9 +11,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/go-sql-driver/mysql" // mysql driver
 	"zabbix.com/pkg/plugin"
 )
 
@@ -46,6 +47,22 @@ var keys = map[string]map[string]interface{}{
 	"mysql.slave_status":          {"query": "show slave status", "json": true},
 }
 
+// DB structure for persistent connection
+type DB struct {
+	*sql.DB
+}
+
+func newConnection(dataSourceName string) (*DB, error) {
+	db, err := sql.Open("mysql", dataSourceName)
+	if err != nil {
+		return nil, err
+	}
+	if err = db.Ping(); err != nil {
+		return nil, err
+	}
+	return &DB{db}, nil
+}
+
 // Export implements the Exporter interface.
 func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider) (result interface{}, err error) {
 
@@ -67,9 +84,9 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 		port = params[1]
 	}
 
-	db := ""
+	dbname := ""
 	if len(params) == 3 {
-		db = params[2]
+		dbname = params[2]
 	}
 
 	_, ok := keys[key]
@@ -82,7 +99,7 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 		Request:    keys[key]["query"].(string)}
 
 	if key == "mysql.dbsize" && len(params) == 3 {
-		c.Request = keys[key]["query"].(string) + "'" + db + "'"
+		c.Request = keys[key]["query"].(string) + "'" + dbname + "'"
 	}
 
 	return get(c, keys[key]["json"].(bool))
@@ -90,18 +107,20 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 
 func get(config config, jsonFlag bool) (response string, err error) {
 
-	db, err := sql.Open("mysql", config.ConnString)
+	db, err := newConnection(config.ConnString)
 	if err != nil {
-		//log.Fatal(err)
-		panic(err)
+		log.Panic(err)
 	}
+
+	// db, err = sql.Open("mysql", config.ConnString)
 	// if err != nil {
-    //     return nil, err
-    // }
-    if err = db.Ping(); err != nil {
-        // return nil, err
-		panic(err)
-    }
+	// 	panic(err)
+	// }
+
+	// if err = db.Ping(); err != nil {
+	// 	// return nil, err
+	// 	panic(err)
+	// }
 
 	rows, err := db.Query(config.Request)
 	if err != nil {
