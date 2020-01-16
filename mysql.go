@@ -52,16 +52,7 @@ type DB struct {
 	*sql.DB
 }
 
-func newConnection(dataSourceName string) (*DB, error) {
-	db, err := sql.Open("mysql", dataSourceName)
-	if err != nil {
-		return nil, err
-	}
-	if err = db.Ping(); err != nil {
-		return nil, err
-	}
-	return &DB{db}, nil
-}
+var connections = map[string]DB{}
 
 // Export implements the Exporter interface.
 func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider) (result interface{}, err error) {
@@ -84,13 +75,12 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 		port = params[1]
 	}
 
-	dbname := ""
+	db := ""
 	if len(params) == 3 {
-		dbname = params[2]
+		db = params[2]
 	}
 
-	_, ok := keys[key]
-	if !ok {
+	if _, ok := keys[key]; !ok {
 		return nil, errors.New("Unsupported metric")
 	}
 
@@ -99,28 +89,43 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 		Request:    keys[key]["query"].(string)}
 
 	if key == "mysql.dbsize" && len(params) == 3 {
-		c.Request = keys[key]["query"].(string) + "'" + dbname + "'"
+		c.Request = keys[key]["query"].(string) + "'" + db + "'"
 	}
 
 	return get(c, keys[key]["json"].(bool))
 }
 
-func get(config config, jsonFlag bool) (response string, err error) {
+func connectionID(dataSourceName string) (*DB, error) {
 
-	db, err := newConnection(config.ConnString)
-	if err != nil {
-		log.Panic(err)
+	var db *sql.DB
+	var err error
+
+	if _, ok := connections[dataSourceName]; ok {
+		db = connections[dataSourceName].DB
+		if err = db.Ping(); err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		db, err = sql.Open("mysql", dataSourceName)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err = db.Ping(); err != nil {
+			log.Fatal(err)
+		}
+		connections[dataSourceName] = DB{db}
 	}
 
-	// db, err = sql.Open("mysql", config.ConnString)
-	// if err != nil {
-	// 	panic(err)
-	// }
+	return &DB{db}, nil
+}
 
-	// if err = db.Ping(); err != nil {
-	// 	// return nil, err
-	// 	panic(err)
-	// }
+func get(config config, jsonFlag bool) (response string, err error) {
+
+	db, err := connectionID(config.ConnString)
+	if err != nil {
+		log.Fatal(err)
+		//panic(err)
+	}
 
 	rows, err := db.Query(config.Request)
 	if err != nil {
