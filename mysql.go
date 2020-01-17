@@ -38,13 +38,13 @@ type config struct {
 }
 
 var keys = map[string]map[string]interface{}{
-	"mysql.get_status_variables":  {"query": "show global status", "json": true},
-	"mysql.ping":                  {"query": "select '1'", "json": false},
-	"mysql.version":               {"query": "select version()", "json": false},
-	"mysql.db.discovery":          {"query": "show databases", "json": true},
-	"mysql.dbsize":                {"query": "SELECT SUM(DATA_LENGTH + INDEX_LENGTH) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=", "json": false},
-	"mysql.replication.discovery": {"query": "show slave status", "json": true},
-	"mysql.slave_status":          {"query": "show slave status", "json": true},
+	"mysql.get_status_variables":  {"query": "show global status", "json": true, "lld": false},
+	"mysql.ping":                  {"query": "select '1'", "json": false, "lld": false},
+	"mysql.version":               {"query": "select version()", "json": false, "lld": false},
+	"mysql.db.discovery":          {"query": "show databases", "json": true, "lld": true},
+	"mysql.dbsize":                {"query": "SELECT SUM(DATA_LENGTH + INDEX_LENGTH) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=", "json": false, "lld": false},
+	"mysql.replication.discovery": {"query": "show slave status", "json": true, "lld": true},
+	"mysql.slave_status":          {"query": "show slave status", "json": true, "lld": false},
 }
 
 // DB structure for persistent connection
@@ -92,7 +92,7 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 		c.Request = keys[key]["query"].(string) + "'" + db + "'"
 	}
 
-	return get(c, keys[key]["json"].(bool))
+	return get(c, keys[key]["json"].(bool), keys[key]["lld"].(bool))
 }
 
 func connectionID(dataSourceName string) (*DB, error) {
@@ -119,7 +119,7 @@ func connectionID(dataSourceName string) (*DB, error) {
 	return &DB{db}, nil
 }
 
-func get(config config, jsonFlag bool) (response string, err error) {
+func get(config config, jsonFlag bool, lldFlag bool) (response string, err error) {
 
 	db, err := connectionID(config.ConnString)
 	if err != nil {
@@ -172,7 +172,9 @@ func get(config config, jsonFlag bool) (response string, err error) {
 			} else {
 				v = val
 			}
-			col = "#" + strings.ToUpper(col)
+			if lldFlag {
+				col = "#" + strings.ToUpper(col)
+			}
 			entry[col] = v
 		}
 
