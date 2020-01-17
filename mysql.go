@@ -173,7 +173,7 @@ func get(config config, jsonFlag bool, lldFlag bool) (response string, err error
 				v = val
 			}
 			if lldFlag {
-				col = "#" + strings.ToUpper(col)
+				col = "{#" + strings.ToUpper(col) + "}"
 			}
 			entry[col] = v
 		}
