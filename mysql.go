@@ -1,143 +1,153 @@
 /*
-** Author:      Maxim Chudinov
-** Description: MySQL plugin for Zabbix agent2
+** Zabbix
+** Copyright (C) 2001-2019 Zabbix SIA
 **
- */
+** This program is free software; you can redistribute it and/or modify
+** it under the terms of the GNU General Public License as published by
+** the Free Software Foundation; either version 2 of the License, or
+** (at your option) any later version.
+**
+** This program is distributed in the hope that it will be useful,
+** but WITHOUT ANY WARRANTY; without even the implied warranty of
+** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+** GNU General Public License for more details.
+**
+** You should have received a copy of the GNU General Public License
+** along with this program; if not, write to the Free Software
+** Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+**/
 
 package mysql
 
 import (
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
-
-	_ "github.com/go-sql-driver/mysql" // mysql driver
 	"zabbix.com/pkg/plugin"
 )
+
+const (
+	pluginName = "MySQL"
+	pingFailed = "0"
+) 
+
+type key struct {
+	query string	// SQL request text
+	maxParams int	// maxParams defines the maximum number of parameters for metrics.
+	json  bool		// It's a flag that the result must be in JSON
+	lld   bool		// It's a flag that the result must be in JSON with the key names in uppercase
+}
+
+var keys = map[string]key{
+	"mysql.get_status_variables": {query: "show global status",
+		maxParams: 1,
+		json: true,
+		lld:  false},
+	"mysql.ping": {query: "select '1'",
+		maxParams: 1,
+		json: false,
+		lld:  false},
+	"mysql.version": {query: "select version()",
+		maxParams: 1,
+		json: false,
+		lld:  false},
+	"mysql.db.discovery": {query: "show databases",
+		maxParams: 1,
+		json: true,
+		lld:  true},
+	"mysql.dbsize": {query: "SELECT SUM(DATA_LENGTH + INDEX_LENGTH) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=?",
+		maxParams: 2,
+		json: false,
+		lld:  false},
+	"mysql.replication.discovery": {query: "show slave status",
+		maxParams: 1,
+		json: true,
+		lld:  true},
+	"mysql.slave_status": {query: "show slave status",
+		maxParams: 2,
+		json: true,
+		lld:  false},
+}
 
 // Plugin inherits plugin.Base and store plugin-specific data.
 type Plugin struct {
 	plugin.Base
+	connMgr *connManager
+	options PluginOptions
 }
+
+type handler func(conn dbClient, params []string) (res interface{}, err error)
 
 // impl is the pointer to the plugin implementation.
 var impl Plugin
 
-const (
-	pluginName = "MySQL"
-	user       = "root"
-	password   = "root_pwd"
-)
-
-type config struct {
-	ConnString string
-	Request    string
-}
-
-var keys = map[string]map[string]interface{}{
-	"mysql.get_status_variables":  {"query": "show global status", "json": true, "lld": false},
-	"mysql.ping":                  {"query": "select '1'", "json": false, "lld": false},
-	"mysql.version":               {"query": "select version()", "json": false, "lld": false},
-	"mysql.db.discovery":          {"query": "show databases", "json": true, "lld": true},
-	"mysql.dbsize":                {"query": "SELECT SUM(DATA_LENGTH + INDEX_LENGTH) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=", "json": false, "lld": false},
-	"mysql.replication.discovery": {"query": "show slave status", "json": true, "lld": true},
-	"mysql.slave_status":          {"query": "show slave status", "json": true, "lld": false},
-}
-
-// DB structure for persistent connection
-type DB struct {
-	*sql.DB
-}
-
-var connections = map[string]DB{}
-
 // Export implements the Exporter interface.
 func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider) (result interface{}, err error) {
 
-	if len(params) < 1 {
-		return nil, errors.New("Please provide at least <hostname>")
+	if len(params) > keys[key].maxParams {
+		return nil, errorTooManyParameters
 	}
 
-	if len(params) > 3 {
-		return nil, errors.New("Too many parameters")
+	// The first param can be either a URI or a session identifier.
+	uri, err := newURIWithCreds(params[0])
+	if err != nil {
+		return nil, err
 	}
 
-	host := "localhost"
-	if params[0] != "" {
-		host = params[0]
+	conn, err := p.connMgr.GetConnection(uri)
+	if err != nil {
+		// Special logic of processing connection errors is used if mysql.ping is requested
+		// because it must return pingFailed if any error occurred.
+		if key == "mysql.ping" {
+			return pingFailed, nil
+		}
+
+		// p.Errf(err.Error()) //2020/01/20 16:40:19.227768 [MySQL] dial tcp 192.168.7.122:3306: connect: connection refused
+		return nil, errors.New(formatZabbixError(err.Error()))
 	}
 
-	port := "3306"
-	if len(params) > 1 && params[1] != "" {
-		port = params[1]
+	keyProperty := keys[key]
+
+	if key == "mysql.dbsize" {
+		return getSingleton(conn, &keyProperty, params[1])
 	}
 
-	db := ""
-	if len(params) == 3 {
-		db = params[2]
+	if keyProperty.json {
+		return getJSON(conn, &keyProperty)
+	}else {
+		return getSingleton(conn, &keyProperty, "")
 	}
 
-	if _, ok := keys[key]; !ok {
-		return nil, errors.New("Unsupported metric")
-	}
-
-	c := config{
-		ConnString: user + ":" + password + "@tcp(" + host + ":" + port + ")/",
-		Request:    keys[key]["query"].(string)}
-
-	if key == "mysql.dbsize" && len(params) == 3 {
-		c.Request = keys[key]["query"].(string) + "'" + db + "'"
-	}
-
-	return get(c, keys[key]["json"].(bool), keys[key]["lld"].(bool))
 }
 
-func connectionID(dataSourceName string) (*DB, error) {
+func getSingleton(config *dbConn, keyProperty *key, arg string) (response string, err error) {
+	var value string
 
-	var db *sql.DB
-	var err error
-
-	if _, ok := connections[dataSourceName]; ok {
-		db = connections[dataSourceName].DB
-		if err = db.Ping(); err != nil {
-			log.Fatal(err)
-		}
+	if len(arg) > 0 {
+		err = config.client.QueryRow(keyProperty.query, arg).Scan(&value)
 	} else {
-		db, err = sql.Open("mysql", dataSourceName)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if err = db.Ping(); err != nil {
-			log.Fatal(err)
-		}
-		connections[dataSourceName] = DB{db}
+		err = config.client.QueryRow(keyProperty.query).Scan(&value)
 	}
 
-	return &DB{db}, nil
+	if err != nil {
+		return formatZabbixError(err.Error()), nil
+	}
+
+	return fmt.Sprintf("%s", value), nil
 }
 
-func get(config config, jsonFlag bool, lldFlag bool) (response string, err error) {
+func getJSON(config *dbConn, keyProperty *key) (response string, err error) {
 
-	db, err := connectionID(config.ConnString)
+	rows, err := config.client.Query(keyProperty.query)
 	if err != nil {
-		log.Fatal(err)
-		//panic(err)
-	}
-
-	rows, err := db.Query(config.Request)
-	if err != nil {
-		//log.Fatal(err)
-		panic(err)
+		return formatZabbixError(err.Error()), nil
 	}
 	defer rows.Close()
 
 	columns, err := rows.Columns()
 	if err != nil {
-		//return "", err
-		panic(err)
+		return formatZabbixError(err.Error()), nil
 	}
 
 	count := len(columns)
@@ -147,10 +157,10 @@ func get(config config, jsonFlag bool, lldFlag bool) (response string, err error
 
 	for rows.Next() {
 
-		if !jsonFlag {
+		if !keyProperty.json {
 			var value string
 			if err := rows.Scan(&value); err != nil {
-				panic(err)
+				return formatZabbixError(err.Error()), nil
 			}
 
 			return fmt.Sprintf("%s", value), nil
@@ -172,7 +182,7 @@ func get(config config, jsonFlag bool, lldFlag bool) (response string, err error
 			} else {
 				v = val
 			}
-			if lldFlag {
+			if keyProperty.lld {
 				col = "{#" + strings.ToUpper(col) + "}"
 			}
 			entry[col] = v
@@ -183,8 +193,7 @@ func get(config config, jsonFlag bool, lldFlag bool) (response string, err error
 
 	jsonData, err := json.Marshal(tableData)
 	if err != nil {
-		//return "", err
-		panic(err)
+		return formatZabbixError(err.Error()), nil
 	}
 
 	return fmt.Sprintf("%s", string(jsonData)), nil
