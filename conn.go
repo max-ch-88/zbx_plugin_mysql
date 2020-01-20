@@ -34,20 +34,11 @@ const clientName = "zbx_monitor"
 
 type connID [sha512.Size]byte
 
-type dbClient interface {
-	// Query(cmd radix.CmdAction) error
-}
-
 type dbConn struct {
 	client         *sql.DB
 	uri            *mysql.Config
 	lastTimeAccess time.Time
 }
-
-// Query wraps the radix.Client.Do function.
-// func (r *dbConn) Query(cmd radix.CmdAction) error {
-// 	return r.client.Do(cmd)
-// }
 
 // updateAccessTime updates the last time a connection was accessed.
 func (r *dbConn) updateAccessTime() {
@@ -95,28 +86,12 @@ func (c *connManager) create(uri *mysql.Config, cid connID) (*dbConn, error) {
 		panic("connection already exists")
 	}
 
-	// AuthConnFunc is used as radix.ConnFunc to perform AUTH and set timeout
-	// AuthConnFunc := func(scheme, addr string) (conn radix.Conn, err error) {
-	// 	conn, err = radix.Dial(scheme, addr,
-	// 		radix.DialTimeout(c.timeout),
-	// 		radix.DialAuthPass(uri.Password()))
-
-	// 	// Set name for connection. It will be showed in "client list" output.
-	// 	if err == nil {
-	// 		err = conn.Do(radix.Cmd(nil, "CLIENT", "SETNAME", clientName))
-	// 	}
-
-	// 	return
-	// }
-
 	client, err := sql.Open("mysql",uri.FormatDSN())
-	// radix.NewPool(uri.Scheme(), uri.Addr(), poolSize, radix.PoolConnFunc(AuthConnFunc))
 	if err != nil {
 		return nil, err
 	}
 
 	if err = client.Ping(); err != nil {
-		// fmt.Println("Not connecting")
 		return nil, err
 	}
 

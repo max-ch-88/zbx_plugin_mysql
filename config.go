@@ -44,10 +44,10 @@ type PluginOptions struct {
 	URI string `conf:"default=tcp(localhost:3306)/"`
 
 	// User is the default user.
-	User string `conf:"root"`
+	User string `conf:"default=root"`
 
 	// Password is the default password.
-	Password string `conf:""`
+	Password string `conf:"default=root_pwd"`
 
 	// Timeout is the maximum time for waiting when a request has to be done. Default value equals the global timeout.
 	Timeout int `conf:"optional,range=1:30"`

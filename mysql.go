@@ -77,8 +77,6 @@ type Plugin struct {
 	options PluginOptions
 }
 
-type handler func(conn dbClient, params []string) (res interface{}, err error)
-
 // impl is the pointer to the plugin implementation.
 var impl Plugin
 
@@ -115,10 +113,9 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 
 	if keyProperty.json {
 		return getJSON(conn, &keyProperty)
-	}else {
-		return getSingleton(conn, &keyProperty, "")
 	}
 
+	return getSingleton(conn, &keyProperty, "")
 }
 
 func getSingleton(config *dbConn, keyProperty *key, arg string) (response string, err error) {
