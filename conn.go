@@ -143,7 +143,7 @@ func (c *connManager) closeUnused() (err error) {
 // GetConnection returns an existing connection or creates a new one.
 func (c *connManager) GetConnection(uri *mysql.Config) (conn *dbConn, err error) {
 	cid := createConnectionID(uri)
-	fmt.Printf("%+v", c)
+	fmt.Sprintf("%+v", c)
 	c.Lock()
 	defer c.Unlock()
 
