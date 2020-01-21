@@ -30,44 +30,44 @@ import (
 const (
 	pluginName = "MySQL"
 	pingFailed = "0"
-) 
+)
 
 type key struct {
-	query string	// SQL request text
-	maxParams int	// maxParams defines the maximum number of parameters for metrics.
-	json  bool		// It's a flag that the result must be in JSON
-	lld   bool		// It's a flag that the result must be in JSON with the key names in uppercase
+	query     string // SQL request text
+	maxParams int    // maxParams defines the maximum number of parameters for metrics.
+	json      bool   // It's a flag that the result must be in JSON
+	lld       bool   // It's a flag that the result must be in JSON with the key names in uppercase
 }
 
 var keys = map[string]key{
 	"mysql.get_status_variables": {query: "show global status",
 		maxParams: 1,
-		json: true,
-		lld:  false},
+		json:      true,
+		lld:       false},
 	"mysql.ping": {query: "select '1'",
 		maxParams: 1,
-		json: false,
-		lld:  false},
+		json:      false,
+		lld:       false},
 	"mysql.version": {query: "select version()",
 		maxParams: 1,
-		json: false,
-		lld:  false},
+		json:      false,
+		lld:       false},
 	"mysql.db.discovery": {query: "show databases",
 		maxParams: 1,
-		json: true,
-		lld:  true},
+		json:      true,
+		lld:       true},
 	"mysql.dbsize": {query: "SELECT SUM(DATA_LENGTH + INDEX_LENGTH) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=?",
 		maxParams: 2,
-		json: false,
-		lld:  false},
+		json:      false,
+		lld:       false},
 	"mysql.replication.discovery": {query: "show slave status",
 		maxParams: 1,
-		json: true,
-		lld:  true},
+		json:      true,
+		lld:       true},
 	"mysql.slave_status": {query: "show slave status",
 		maxParams: 2,
-		json: true,
-		lld:  false},
+		json:      true,
+		lld:       false},
 }
 
 // Plugin inherits plugin.Base and store plugin-specific data.

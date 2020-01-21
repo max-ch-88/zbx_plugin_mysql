@@ -55,7 +55,7 @@ type connManager struct {
 }
 
 // NewConnManager initializes connManager structure and runs Go Routine that watches for unused connections.
-func newConnManager(keepAlive, timeout time.Duration) *connManager {
+func NewConnManager(keepAlive, timeout time.Duration) *connManager {
 	connMgr := &connManager{
 		connections: make(map[connID]*dbConn),
 		keepAlive:   keepAlive,
@@ -74,7 +74,7 @@ func newConnManager(keepAlive, timeout time.Duration) *connManager {
 	return connMgr
 }
 
-const poolSize = 1
+// const poolSize = 1
 
 // create creates a new connection with a given URI and password.
 func (c *connManager) create(uri *mysql.Config, cid connID) (*dbConn, error) {
