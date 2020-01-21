@@ -27,7 +27,7 @@ import (
 	"sync"
 	"time"
 	"zabbix.com/pkg/log"
-	// "fmt"
+	"fmt"
 )
 
 const clientName = "zbx_monitor"
@@ -55,7 +55,7 @@ type connManager struct {
 }
 
 // NewConnManager initializes connManager structure and runs Go Routine that watches for unused connections.
-func NewConnManager(keepAlive, timeout time.Duration) *connManager {
+func newConnManager(keepAlive, timeout time.Duration) *connManager {
 	connMgr := &connManager{
 		connections: make(map[connID]*dbConn),
 		keepAlive:   keepAlive,
@@ -143,7 +143,7 @@ func (c *connManager) closeUnused() (err error) {
 // GetConnection returns an existing connection or creates a new one.
 func (c *connManager) GetConnection(uri *mysql.Config) (conn *dbConn, err error) {
 	cid := createConnectionID(uri)
-
+	fmt.Printf("%+v", c)
 	c.Lock()
 	defer c.Unlock()
 

@@ -75,7 +75,7 @@ func (p *Plugin) Configure(global *plugin.GlobalOptions, options interface{}) {
 		}
 	}
 
-	p.connMgr = NewConnManager(
+	p.connMgr = newConnManager(
 		time.Duration(p.options.KeepAlive)*time.Second,
 		time.Duration(p.options.Timeout)*time.Second)
 }
