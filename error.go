@@ -27,6 +27,9 @@ func (e zabbixError) Error() string { return string(e) }
 
 const (
 	errorTooManyParameters 		= zabbixError("Too many parameters.")
+	errorTooFewParameters		= zabbixError("Too few parameters.")
+	errorDBnameMissing			= zabbixError("There is no database name as the second parameter.")
+	errorUnknownDBname			= zabbixError("Unknown database name.")
 	errorCannotFetchData   		= zabbixError("Cannot fetch data.")
 	errorCannotParseData   		= zabbixError("Cannot parse data.")
 	errorCannotMarshalJSON 		= zabbixError("Cannot marshal JSON.")

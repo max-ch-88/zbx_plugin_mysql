@@ -28,12 +28,13 @@ import (
 )
 
 const (
-	pluginName = "MySQL"
+	pluginName = "Mysql"
 	pingFailed = "0"
 )
 
 type key struct {
 	query     string // SQL request text
+	minParams int    // minParams defines the minimum number of parameters for metrics.
 	maxParams int    // maxParams defines the maximum number of parameters for metrics.
 	json      bool   // It's a flag that the result must be in JSON
 	lld       bool   // It's a flag that the result must be in JSON with the key names in uppercase
@@ -41,30 +42,37 @@ type key struct {
 
 var keys = map[string]key{
 	"mysql.get_status_variables": {query: "show global status",
+		minParams: 1,
 		maxParams: 1,
 		json:      true,
 		lld:       false},
 	"mysql.ping": {query: "select '1'",
+		minParams: 1,
 		maxParams: 1,
 		json:      false,
 		lld:       false},
 	"mysql.version": {query: "select version()",
+		minParams: 1,
 		maxParams: 1,
 		json:      false,
 		lld:       false},
 	"mysql.db.discovery": {query: "show databases",
+		minParams: 1,
 		maxParams: 1,
 		json:      true,
 		lld:       true},
-	"mysql.dbsize": {query: "SELECT SUM(DATA_LENGTH + INDEX_LENGTH) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=?",
+	"mysql.dbsize": {query: "select sum(data_length + index_length) as size from information_schema.tables where table_schema=?",
+		minParams: 2,
 		maxParams: 2,
 		json:      false,
 		lld:       false},
 	"mysql.replication.discovery": {query: "show slave status",
+		minParams: 1,
 		maxParams: 1,
 		json:      true,
 		lld:       true},
 	"mysql.slave_status": {query: "show slave status",
+		minParams: 2,
 		maxParams: 2,
 		json:      true,
 		lld:       false},
@@ -87,8 +95,12 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 		return nil, errorTooManyParameters
 	}
 
+	if len(params) < keys[key].minParams {
+		return nil, errorTooFewParameters
+	}
+
 	// The first param can be either a URI or a session identifier.
-	uri, err := newURIWithCreds(params[0])
+	uri, err := newURIWithCreds(params[0], &p.options)
 	if err != nil {
 		return nil, err
 	}
@@ -101,14 +113,24 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 			return pingFailed, nil
 		}
 
-		// p.Errf(err.Error()) //2020/01/20 16:40:19.227768 [MySQL] dial tcp 192.168.7.122:3306: connect: connection refused
+		p.Errf(err.Error())
 		return nil, errors.New(formatZabbixError(err.Error()))
 	}
 
 	keyProperty := keys[key]
 
 	if key == "mysql.dbsize" {
-		return getSingleton(conn, &keyProperty, params[1])
+		if len(params[1]) == 0 {
+			return nil, errorDBnameMissing
+		}
+		
+		if result, err = getSingleton(conn, &keyProperty, params[1]); err != nil {
+			if strings.Contains(err.Error(), "converting NULL to string is unsupported") {
+				err = errorUnknownDBname
+			}
+		}
+
+		return
 	}
 
 	if keyProperty.json {
@@ -118,7 +140,8 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 	return getSingleton(conn, &keyProperty, "")
 }
 
-func getSingleton(config *dbConn, keyProperty *key, arg string) (response string, err error) {
+// Get a single value
+func getSingleton(config *dbConn, keyProperty *key, arg string) (result interface{}, err error) {
 	var value string
 
 	if len(arg) > 0 {
@@ -128,23 +151,24 @@ func getSingleton(config *dbConn, keyProperty *key, arg string) (response string
 	}
 
 	if err != nil {
-		return formatZabbixError(err.Error()), nil
+		return nil, err
 	}
 
 	return fmt.Sprintf("%s", value), nil
 }
 
-func getJSON(config *dbConn, keyProperty *key) (response string, err error) {
+// Get a set of values in JSON format
+func getJSON(config *dbConn, keyProperty *key) (result interface{}, err error) {
 
 	rows, err := config.client.Query(keyProperty.query)
 	if err != nil {
-		return formatZabbixError(err.Error()), nil
+		return nil, err //formatZabbixError(err.Error())
 	}
 	defer rows.Close()
 
 	columns, err := rows.Columns()
 	if err != nil {
-		return formatZabbixError(err.Error()), nil
+		return nil, err
 	}
 
 	count := len(columns)
@@ -156,8 +180,8 @@ func getJSON(config *dbConn, keyProperty *key) (response string, err error) {
 
 		if !keyProperty.json {
 			var value string
-			if err := rows.Scan(&value); err != nil {
-				return formatZabbixError(err.Error()), nil
+			if err = rows.Scan(&value); err != nil {
+				return nil, err
 			}
 
 			return fmt.Sprintf("%s", value), nil
@@ -179,6 +203,7 @@ func getJSON(config *dbConn, keyProperty *key) (response string, err error) {
 			} else {
 				v = val
 			}
+			//For LLD JSON make keys in uppercase
 			if keyProperty.lld {
 				col = "{#" + strings.ToUpper(col) + "}"
 			}
@@ -190,7 +215,7 @@ func getJSON(config *dbConn, keyProperty *key) (response string, err error) {
 
 	jsonData, err := json.Marshal(tableData)
 	if err != nil {
-		return formatZabbixError(err.Error()), nil
+		return nil, err
 	}
 
 	return fmt.Sprintf("%s", string(jsonData)), nil
@@ -199,11 +224,11 @@ func getJSON(config *dbConn, keyProperty *key) (response string, err error) {
 // init registers metrics.
 func init() {
 	plugin.RegisterMetrics(&impl, pluginName,
-		"mysql.get_status_variables", "Show global status.",
-		"mysql.ping", "Select '1'.",
-		"mysql.version", "Select version().",
-		"mysql.db.discovery", "Show databases.",
-		"mysql.dbsize", "Show database size.",
-		"mysql.replication.discovery", "Show slave status.",
-		"mysql.slave_status", "Show slave status.")
+		"mysql.get_status_variables", "Values of global status variables.",
+		"mysql.ping", "If the DBMS responds it returns '1', and '0' otherwise.",
+		"mysql.version", "MySQL version.",
+		"mysql.db.discovery", "Databases discovery.",
+		"mysql.dbsize", "Database size in bytes.",
+		"mysql.replication.discovery", "Replication discovery.",
+		"mysql.slave_status", "Replication status.")
 }

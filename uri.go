@@ -25,19 +25,19 @@ import (
 )
 
 // func newURIWithCreds(uri string, user string, password string) (cfg *mysql.Config, err error) {
-func newURIWithCreds(uri string) (cfg *mysql.Config, err error) {	
+func newURIWithCreds(uri string, opt *PluginOptions) (cfg *mysql.Config, err error) {	
 	cfg, err = mysql.ParseDSN(uri)
 	if err != nil {
 		return mysql.NewConfig(), err
 	}
 	
-	// if len(cfg.User) == 0 {
-	// 	cfg.User = user
-	// }
+	if len(cfg.User) == 0 {
+		cfg.User = opt.User
+	}
 
-	// if len(cfg.Passwd) == 0 {
-	// 	cfg.Passwd = password
-	// }
+	if len(cfg.Passwd) == 0 {
+		cfg.Passwd = opt.Password
+	}
 
 	return
 }

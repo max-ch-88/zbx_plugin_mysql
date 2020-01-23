@@ -23,11 +23,9 @@ import (
 	"crypto/sha512"
 	"database/sql"
 	"github.com/go-sql-driver/mysql"
-	// "github.com/mediocregopher/radix/v3"
 	"sync"
 	"time"
 	"zabbix.com/pkg/log"
-	"fmt"
 )
 
 const clientName = "zbx_monitor"
@@ -74,8 +72,6 @@ func newConnManager(keepAlive, timeout time.Duration) *connManager {
 	return connMgr
 }
 
-// const poolSize = 1
-
 // create creates a new connection with a given URI and password.
 func (c *connManager) create(uri *mysql.Config, cid connID) (*dbConn, error) {
 	c.connMutex.Lock()
@@ -121,7 +117,6 @@ func (c *connManager) get(cid connID) *dbConn {
 
 // CloseUnused closes each connection that has not been accessed at least within the keepalive interval.
 func (c *connManager) closeUnused() (err error) {
-	// var uri string
 
 	c.connMutex.Lock()
 	defer c.connMutex.Unlock()
@@ -129,7 +124,6 @@ func (c *connManager) closeUnused() (err error) {
 	for cid, conn := range c.connections {
 		if time.Since(conn.lastTimeAccess) > c.keepAlive {
 			if err = conn.client.Close(); err == nil {
-				// uri = conn.uri
 				delete(c.connections, cid)
 				log.Debugf("[%s] Closed unused connection: %s", pluginName, conn.uri.Addr)
 			}
@@ -143,7 +137,7 @@ func (c *connManager) closeUnused() (err error) {
 // GetConnection returns an existing connection or creates a new one.
 func (c *connManager) GetConnection(uri *mysql.Config) (conn *dbConn, err error) {
 	cid := createConnectionID(uri)
-	fmt.Sprintf("%+v", c)
+
 	c.Lock()
 	defer c.Unlock()
 
