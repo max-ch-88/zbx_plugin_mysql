@@ -21,7 +21,6 @@ package mysql
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"zabbix.com/pkg/plugin"
@@ -112,9 +111,7 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 		if key == "mysql.ping" {
 			return pingFailed, nil
 		}
-
-		p.Errf(err.Error())
-		return nil, errors.New(formatZabbixError(err.Error()))
+		return nil, err
 	}
 
 	keyProperty := keys[key]
@@ -123,11 +120,13 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 		if len(params[1]) == 0 {
 			return nil, errorDBnameMissing
 		}
-		
+
 		if result, err = getSingleton(conn, &keyProperty, params[1]); err != nil {
-			if strings.Contains(err.Error(), "converting NULL to string is unsupported") {
-				err = errorUnknownDBname
-			}
+			return nil, err
+		}
+
+		if result == nil {
+			err = errorUnknownDBname
 		}
 
 		return
@@ -142,19 +141,22 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 
 // Get a single value
 func getSingleton(config *dbConn, keyProperty *key, arg string) (result interface{}, err error) {
-	var value string
 
 	if len(arg) > 0 {
-		err = config.client.QueryRow(keyProperty.query, arg).Scan(&value)
+		err = config.client.QueryRow(keyProperty.query, arg).Scan(&result)
 	} else {
-		err = config.client.QueryRow(keyProperty.query).Scan(&value)
+		err = config.client.QueryRow(keyProperty.query).Scan(&result)
 	}
 
 	if err != nil {
 		return nil, err
 	}
 
-	return fmt.Sprintf("%s", value), nil
+	if result == nil {
+		return nil, nil
+	}
+
+	return fmt.Sprintf("%s", result), nil
 }
 
 // Get a set of values in JSON format
@@ -162,7 +164,7 @@ func getJSON(config *dbConn, keyProperty *key) (result interface{}, err error) {
 
 	rows, err := config.client.Query(keyProperty.query)
 	if err != nil {
-		return nil, err //formatZabbixError(err.Error())
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -178,14 +180,13 @@ func getJSON(config *dbConn, keyProperty *key) (result interface{}, err error) {
 
 	for rows.Next() {
 
-		if !keyProperty.json {
-			var value string
-			if err = rows.Scan(&value); err != nil {
-				return nil, err
-			}
+		// if !keyProperty.json {
+		// 	if err = rows.Scan(&result); err != nil {
+		// 		return nil, err
+		// 	}
 
-			return fmt.Sprintf("%s", value), nil
-		}
+		// 	return result.(string), nil
+		// }
 
 		for i := 0; i < count; i++ {
 			valuePtrs[i] = &values[i]
@@ -218,7 +219,7 @@ func getJSON(config *dbConn, keyProperty *key) (result interface{}, err error) {
 		return nil, err
 	}
 
-	return fmt.Sprintf("%s", string(jsonData)), nil
+	return string(jsonData), nil
 }
 
 // init registers metrics.

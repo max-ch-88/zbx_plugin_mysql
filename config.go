@@ -20,7 +20,6 @@
 package mysql
 
 import (
-	"fmt"
 	"time"
 	"zabbix.com/pkg/conf"
 	"zabbix.com/pkg/plugin"
@@ -80,9 +79,6 @@ func (p *Plugin) Configure(global *plugin.GlobalOptions, options interface{}) {
 		time.Duration(p.options.Timeout)*time.Second)
 }
 
-// MaxAuthPassLen const 
-const MaxAuthPassLen = 512
-
 // Validate implements the Configurator interface.
 // Returns an error if validation of a plugin's configuration is failed.
 func (p *Plugin) Validate(options interface{}) error {
@@ -99,10 +95,6 @@ func (p *Plugin) Validate(options interface{}) error {
 	// if err != nil {
 	// 	return err
 	// }
-
-	if len(opts.Password) > MaxAuthPassLen {
-		return fmt.Errorf("password cannot be longer than %d characters", MaxAuthPassLen)
-	}
 
 	// uri := opts.Uri
 	// for name, session := range opts.Sessions {
