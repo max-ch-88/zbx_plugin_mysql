@@ -21,16 +21,25 @@ package mysql
 
 import (
 	"github.com/go-sql-driver/mysql"
-	"strings"
 )
 
 // func newURIWithCreds(uri string, user string, password string) (cfg *mysql.Config, err error) {
 func newURIWithCreds(uri string, opt *PluginOptions) (cfg *mysql.Config, err error) {	
+	var c *mysql.Config
+	
 	cfg, err = mysql.ParseDSN(uri)
 	if err != nil {
-		return mysql.NewConfig(), err
+		return c, err
 	}
-	
+
+	if len(uri) == 0 {
+		c, err = mysql.ParseDSN(opt.URI)
+		if err != nil {
+			return c, err
+		}
+		cfg.Addr = c.Addr
+	}
+
 	if len(cfg.User) == 0 {
 		cfg.User = opt.User
 	}
@@ -39,10 +48,10 @@ func newURIWithCreds(uri string, opt *PluginOptions) (cfg *mysql.Config, err err
 		cfg.Passwd = opt.Password
 	}
 
-	return
+	return cfg, nil
 }
 
 // isUri returns true if s is URI or false if not
-func isLooksLikeURI(s string) bool {
-	return strings.Contains(s, "@tcp(") || strings.Contains(s, "@unix(")
-}
+// func isLooksLikeURI(s string) bool {
+// 	return strings.Contains(s, "@tcp(") || strings.Contains(s, "@unix(")
+// }

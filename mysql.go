@@ -120,7 +120,7 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 		if len(params[1]) == 0 {
 			return nil, errorDBnameMissing
 		}
-
+		
 		if result, err = getSingleton(conn, &keyProperty, params[1]); err != nil {
 			return nil, err
 		}
