@@ -46,7 +46,7 @@ type PluginOptions struct {
 	User string `conf:"default=root"`
 
 	// Password is the default password.
-	Password string `conf:"default=root_pwd"`
+	Password string `conf:"default="`
 
 	// Timeout is the maximum time for waiting when a request has to be done. Default value equals the global timeout.
 	Timeout int `conf:"optional,range=1:30"`
@@ -61,9 +61,11 @@ type PluginOptions struct {
 // Configure implements the Configurator interface.
 // Initializes configuration structures.
 func (p *Plugin) Configure(global *plugin.GlobalOptions, options interface{}) {
+
 	if err := conf.Unmarshal(options, &p.options); err != nil {
 		p.Errf("cannot unmarshal configuration options: %s", err)
 	}
+
 	if p.options.Timeout == 0 {
 		p.options.Timeout = global.Timeout
 	}
