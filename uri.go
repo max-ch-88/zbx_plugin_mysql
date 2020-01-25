@@ -63,6 +63,24 @@ func getURI(connString *string) (result *uri, err error) {
 	return &uriStru, nil
 }
 
+func uri2dsn (u *uri) string {
+
+	var dsn string
+
+	if u.Scheme == "tcp" {
+		dsn = u.Scheme + "(" + u.Host + ")/"
+		if len(u.User) > 0 {
+			dsn = u.User + "@" + dsn
+		}
+	}
+
+	if u.Scheme == "unix" {
+		dsn = u.Scheme + "(/" + u.Opaque + ")/"
+	}
+
+	return dsn
+}
+
 // func newURIWithCreds(uri string, user string, password string) (cfg *mysql.Config, err error) {
 func newURIWithCreds(uri string, opt *PluginOptions) (cfg *mysql.Config, err error) {	
 	var c *mysql.Config
