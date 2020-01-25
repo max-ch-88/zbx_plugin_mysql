@@ -21,7 +21,47 @@ package mysql
 
 import (
 	"github.com/go-sql-driver/mysql"
+	"net/url"
 )
+
+type uri struct {
+	Scheme   string
+	Opaque   string // encoded opaque data
+	User     string // username information
+	Password string // password information
+	Host     string // host or host:port
+}
+
+func getURI(connString *string) (result *uri, err error) {
+
+	var uriStru uri
+
+	u, err := url.Parse(*connString)
+	if err != nil {
+		return nil, err
+	}
+
+	switch u.Scheme {
+	case "tcp":
+		if len(u.Host) == 0 {
+			return nil, errorParameterNotURI
+		}
+	case "unix":
+		if len(u.Opaque) == 0 {
+			return nil, errorParameterNotURI
+		}
+	default:
+		return nil, errorParameterNotURI
+	}
+
+	uriStru.Scheme = u.Scheme
+	uriStru.Opaque = u.Opaque
+	uriStru.User = u.User.Username()
+	uriStru.Password, _ = u.User.Password()
+	uriStru.Host = u.Host
+
+	return &uriStru, nil
+}
 
 // func newURIWithCreds(uri string, user string, password string) (cfg *mysql.Config, err error) {
 func newURIWithCreds(uri string, opt *PluginOptions) (cfg *mysql.Config, err error) {	
