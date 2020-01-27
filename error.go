@@ -37,6 +37,7 @@ const (
 	errorInvalidFormat     		= zabbixError("Invalid format.")
 	errorEmptyResult       		= zabbixError("Empty result.")
 	errorUnknownSession			= zabbixError("Unknown session.")
+	errorParameterNotURI		= zabbixError("The first parameter is not URI.")
 )
 
 // formatZabbixError formats a given error text. It capitalizes the first letter and adds a dot to the end.

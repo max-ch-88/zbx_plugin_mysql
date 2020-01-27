@@ -20,7 +20,7 @@
 package mysql
 
 import (
-	"crypto/sha512"
+	// "crypto/sha512"
 	"database/sql"
 	"github.com/go-sql-driver/mysql"
 	"sync"
@@ -28,9 +28,10 @@ import (
 	"zabbix.com/pkg/log"
 )
 
-const clientName = "zbx_monitor"
-
-type connID [sha512.Size]byte
+const (
+	// clientName = "zbx_monitor"
+	dbms = "mysql"
+)
 
 type dbConn struct {
 	client         *sql.DB
@@ -38,24 +39,24 @@ type dbConn struct {
 	lastTimeAccess time.Time
 }
 
+// Thread-safe structure for manage connections.
+type connManager struct {
+	sync.Mutex
+	connMutex   sync.Mutex
+	connections map[*mysql.Config] *dbConn
+	keepAlive   time.Duration
+	timeout     time.Duration
+}
+
 // updateAccessTime updates the last time a connection was accessed.
 func (r *dbConn) updateAccessTime() {
 	r.lastTimeAccess = time.Now()
 }
 
-// Thread-safe structure for manage connections.
-type connManager struct {
-	sync.Mutex
-	connMutex   sync.Mutex
-	connections map[connID]*dbConn
-	keepAlive   time.Duration
-	timeout     time.Duration
-}
-
 // NewConnManager initializes connManager structure and runs Go Routine that watches for unused connections.
 func newConnManager(keepAlive, timeout time.Duration) *connManager {
 	connMgr := &connManager{
-		connections: make(map[connID]*dbConn),
+		connections: make(map[*mysql.Config] *dbConn),
 		keepAlive:   keepAlive,
 		timeout:     timeout,
 	}
@@ -73,16 +74,16 @@ func newConnManager(keepAlive, timeout time.Duration) *connManager {
 }
 
 // create creates a new connection with a given URI and password.
-func (c *connManager) create(uri *mysql.Config, cid connID) (*dbConn, error) {
+func (c *connManager) create(uri *mysql.Config) (*dbConn, error) {
 	c.connMutex.Lock()
 	defer c.connMutex.Unlock()
 
-	if _, ok := c.connections[cid]; ok {
+	if _, ok := c.connections[uri]; ok {
 		// Should never happen.
 		panic("connection already exists")
 	}
 
-	client, err := sql.Open("mysql",uri.FormatDSN())
+	client, err := sql.Open(dbms,uri.FormatDSN())
 	if err != nil {
 		return nil, err
 	}
@@ -91,23 +92,23 @@ func (c *connManager) create(uri *mysql.Config, cid connID) (*dbConn, error) {
 		return nil, err
 	}
 
-	c.connections[cid] = &dbConn{
+	c.connections[uri] = &dbConn{
 		client:         client,
-		uri:            uri,
+		// uri:            uri,
 		lastTimeAccess: time.Now(),
 	}
 
 	log.Debugf("[%s] Created new connection: %s", pluginName, uri.Addr)
 
-	return c.connections[cid], nil
+	return c.connections[uri], nil
 }
 
 // get returns a connection with given cid if it exists and also updates lastTimeAccess, otherwise returns nil.
-func (c *connManager) get(cid connID) *dbConn {
+func (c *connManager) get(uri *mysql.Config) *dbConn {
 	c.connMutex.Lock()
 	defer c.connMutex.Unlock()
 
-	if conn, ok := c.connections[cid]; ok {
+	if conn, ok := c.connections[uri]; ok {
 		conn.updateAccessTime()
 		return conn
 	}
@@ -121,11 +122,11 @@ func (c *connManager) closeUnused() (err error) {
 	c.connMutex.Lock()
 	defer c.connMutex.Unlock()
 
-	for cid, conn := range c.connections {
+	for uri, conn := range c.connections {
 		if time.Since(conn.lastTimeAccess) > c.keepAlive {
 			if err = conn.client.Close(); err == nil {
-				delete(c.connections, cid)
-				log.Debugf("[%s] Closed unused connection: %s", pluginName, conn.uri.Addr)
+				delete(c.connections, uri)
+				log.Debugf("[%s] Closed unused connection: %s", pluginName, uri.Addr)
 			}
 		}
 	}
@@ -136,22 +137,22 @@ func (c *connManager) closeUnused() (err error) {
 
 // GetConnection returns an existing connection or creates a new one.
 func (c *connManager) GetConnection(uri *mysql.Config) (conn *dbConn, err error) {
-	cid := createConnectionID(uri)
+	// cid := createConnectionID(uri)
 
 	c.Lock()
 	defer c.Unlock()
 
-	conn = c.get(cid)
+	conn = c.get(uri)
 
 	if conn == nil {
-		conn, err = c.create(uri, cid)
+		conn, err = c.create(uri)
 	}
 
 	return
 }
 
 // createConnectionId returns sha512 hash from URI.
-func createConnectionID(uri *mysql.Config) connID {
-	// TODO: add memoization
-	return connID(sha512.Sum512([]byte(uri.FormatDSN())))
-}
+// func createConnectionID(uri *mysql.Config) connID {
+// 	// TODO: add memoization
+// 	return connID(sha512.Sum512([]byte(uri.FormatDSN())))
+// }

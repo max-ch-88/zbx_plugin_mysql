@@ -24,19 +24,20 @@ import (
 	"net/url"
 )
 
-type uri struct {
-	Scheme   string
-	Opaque   string // encoded opaque data
-	User     string // username information
-	Password string // password information
-	Host     string // host or host:port
-}
+// type uri struct {
+// 	Scheme   string
+// 	Opaque   string // encoded opaque data
+// 	User     string // username information
+// 	Password string // password information
+// 	Host     string // host or host:port
+// }
 
-func getURI(connString *string) (result *uri, err error) {
+func getURI(s *Session) (result *mysql.Config, err error) {
 
-	var uriStru uri
+	// var uriStru uri
+	var r mysql.Config
 
-	u, err := url.Parse(*connString)
+	u, err := url.Parse(s.URI)
 	if err != nil {
 		return nil, err
 	}
@@ -54,60 +55,60 @@ func getURI(connString *string) (result *uri, err error) {
 		return nil, errorParameterNotURI
 	}
 
-	uriStru.Scheme = u.Scheme
-	uriStru.Opaque = u.Opaque
-	uriStru.User = u.User.Username()
-	uriStru.Password, _ = u.User.Password()
-	uriStru.Host = u.Host
+	r.User = s.User
+	r.Passwd = s.Password
+	r.Net = u.Scheme
+	r.Addr = u.Host
+	r.AllowNativePasswords = true
 
-	return &uriStru, nil
+	return &r, nil
 }
 
-func uri2dsn (u *uri) string {
+// func uri2dsn (u *uri) *string {
 
-	var dsn string
+// 	var dsn string
 
-	if u.Scheme == "tcp" {
-		dsn = u.Scheme + "(" + u.Host + ")/"
-		if len(u.User) > 0 {
-			dsn = u.User + "@" + dsn
-		}
-	}
+// 	if u.Scheme == "tcp" {
+// 		dsn = u.Scheme + "(" + u.Host + ")/"
+// 		if len(u.User) > 0 {
+// 			dsn = u.User + ":" + u.Password + "@" + dsn
+// 		}
+// 	}
 
-	if u.Scheme == "unix" {
-		dsn = u.Scheme + "(/" + u.Opaque + ")/"
-	}
+// 	if u.Scheme == "unix" {
+// 		dsn = u.Scheme + "(/" + u.Opaque + ")/"
+// 	}
 
-	return dsn
-}
+// 	return &dsn
+// }
 
 // func newURIWithCreds(uri string, user string, password string) (cfg *mysql.Config, err error) {
-func newURIWithCreds(uri string, opt *PluginOptions) (cfg *mysql.Config, err error) {	
-	var c *mysql.Config
+// func newURIWithCreds(uri *string, opt *PluginOptions) (cfg *mysql.Config, err error) {	
+// 	var c *mysql.Config
 	
-	cfg, err = mysql.ParseDSN(uri)
-	if err != nil {
-		return c, err
-	}
+// 	cfg, err = mysql.ParseDSN(*uri)
+// 	if err != nil {
+// 		return c, err
+// 	}
 
-	if len(uri) == 0 {
-		c, err = mysql.ParseDSN(opt.URI)
-		if err != nil {
-			return c, err
-		}
-		cfg.Addr = c.Addr
-	}
+// 	if len(*uri) == 0 {
+// 		c, err = mysql.ParseDSN(opt.URI)
+// 		if err != nil {
+// 			return c, err
+// 		}
+// 		cfg.Addr = c.Addr
+// 	}
 
-	if len(cfg.User) == 0 {
-		cfg.User = opt.User
-	}
+// 	if len(cfg.User) == 0 {
+// 		cfg.User = opt.User
+// 	}
 
-	if len(cfg.Passwd) == 0 {
-		cfg.Passwd = opt.Password
-	}
+// 	if len(cfg.Passwd) == 0 {
+// 		cfg.Passwd = opt.Password
+// 	}
 
-	return cfg, nil
-}
+// 	return cfg, nil
+// }
 
 // isUri returns true if s is URI or false if not
 // func isLooksLikeURI(s string) bool {

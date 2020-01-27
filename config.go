@@ -40,7 +40,7 @@ type Session struct {
 // PluginOptions option from config file 
 type PluginOptions struct {
 	// URI is the default connection string.
-	URI string `conf:"default=tcp(localhost:3306)/"`
+	URI string `conf:"default=tcp://localhost:3306"`
 
 	// User is the default user.
 	User string `conf:"default=root"`
@@ -55,7 +55,8 @@ type PluginOptions struct {
 	KeepAlive int `conf:"optional,range=60:900,default=300"`
 
 	// Sessions stores pre-defined named sets of connections settings.
-	Sessions map[string]*Session `conf:"optional"`
+	// Sessions map[string]*Session `conf:"optional"`
+	Sessions map[string] *Session `conf:"optional"`
 }
 
 // Configure implements the Configurator interface.
@@ -69,10 +70,14 @@ func (p *Plugin) Configure(global *plugin.GlobalOptions, options interface{}) {
 	if p.options.Timeout == 0 {
 		p.options.Timeout = global.Timeout
 	}
-
+	
 	for _, session := range p.options.Sessions {
 		if session.URI == "" {
 			session.URI = p.options.URI
+		}
+		if session.User == "" {
+			session.User = p.options.User
+			session.Password = p.options.Password
 		}
 	}
 
@@ -91,30 +96,6 @@ func (p *Plugin) Validate(options interface{}) error {
 	if err != nil {
 		return err
 	}
-
-	// fix
-	// err = validateUri(opts.Uri)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// uri := opts.Uri
-	// for name, session := range opts.Sessions {
-	// 	if session.Uri != "" {
-	// 		uri = session.Uri
-	// 	}
-
-	// 	// fix
-	// 	// err = validateUri(uri)
-	// 	// if err != nil {
-	// 	// 	return fmt.Errorf("invalid parameters for session '%s': %s", name, err.Error())
-	// 	// }
-
-	// 	if len(session.Password) > MaxAuthPassLen {
-	// 		return fmt.Errorf("invalid parameters for session '%s': password cannot be longer than %d characters",
-	// 			name, MaxAuthPassLen)
-	// 	}
-	// }
 
 	return err
 }

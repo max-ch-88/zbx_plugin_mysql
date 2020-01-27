@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"strings"
 	"zabbix.com/pkg/plugin"
+	"github.com/go-sql-driver/mysql"
 )
 
 const (
@@ -98,13 +99,37 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 		return nil, errorTooFewParameters
 	}
 
-	// The first param can be either a URI or a session identifier.
-	uri, err := newURIWithCreds(params[0], &p.options)
-	if err != nil {
-		return nil, err
-	}
+	var mysqlConf *mysql.Config
 
-	conn, err := p.connMgr.GetConnection(uri)
+	if session, ok := p.options.Sessions[params[0]]; ok {
+		mysqlConf, err = getURI(session)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+
+		url := params[0]
+
+		if len(url) == 0 {
+			url = p.options.URI
+		}
+
+		mysqlConf, err = getURI(&Session{URI: url, User: p.options.User, Password: p.options.Password})
+		if err != nil {
+			return nil, err
+		}
+	}
+	// fmt.Printf("%q\n", p.options)
+	
+	// connString := uri2dsn(uri)
+
+	// The first param can be either a URI or a session identifier.
+	// db, err := newURIWithCreds(uri, &p.options)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	conn, err := p.connMgr.GetConnection(mysqlConf)
 	if err != nil {
 		// Special logic of processing connection errors is used if mysql.ping is requested
 		// because it must return pingFailed if any error occurred.
