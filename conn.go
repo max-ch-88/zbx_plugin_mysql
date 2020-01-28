@@ -99,9 +99,10 @@ func (c *connManager) create(uri *mysql.Config) (*dbConn, error) {
 		// uri:            uri,
 		lastTimeAccess: time.Now(),
 	}
-	id ++
 
+	log.Errf("[%s] Created connection #%d : %s", pluginName, id, dsn)
 	log.Debugf("[%s] Created new connection: %s", pluginName, uri.Addr)
+	id ++
 
 	return c.connections[dsn], nil
 }

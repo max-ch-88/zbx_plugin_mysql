@@ -147,8 +147,6 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 		return nil, err
 	}
 
-	p.Errf("Created connection #%d : %s %s", conn.id, mysqlConf.FormatDSN(), key)
-
 	keyProperty := keys[key]
 
 	if key == "mysql.dbsize" {
