@@ -41,7 +41,7 @@ type dbConn struct {
 type connManager struct {
 	sync.Mutex
 	connMutex   sync.Mutex
-	connections map[*mysql.Config] *dbConn
+	connections map[string] *dbConn
 	keepAlive   time.Duration
 	timeout     time.Duration
 }
@@ -54,7 +54,7 @@ func (r *dbConn) updateAccessTime() {
 // NewConnManager initializes connManager structure and runs Go Routine that watches for unused connections.
 func newConnManager(keepAlive, timeout time.Duration) *connManager {
 	connMgr := &connManager{
-		connections: make(map[*mysql.Config] *dbConn),
+		connections: make(map[string] *dbConn),
 		keepAlive:   keepAlive,
 		timeout:     timeout,
 	}
@@ -73,15 +73,18 @@ func newConnManager(keepAlive, timeout time.Duration) *connManager {
 
 // create creates a new connection with a given URI and password.
 func (c *connManager) create(uri *mysql.Config) (*dbConn, error) {
+	
 	c.connMutex.Lock()
 	defer c.connMutex.Unlock()
+	
+	dsn := uri.FormatDSN()
 
-	if _, ok := c.connections[uri]; ok {
+	if _, ok := c.connections[dsn]; ok {
 		// Should never happen.
 		panic("connection already exists")
 	}
 
-	client, err := sql.Open(dbms,uri.FormatDSN())
+	client, err := sql.Open(dbms,dsn)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +93,7 @@ func (c *connManager) create(uri *mysql.Config) (*dbConn, error) {
 		return nil, err
 	}
 
-	c.connections[uri] = &dbConn{
+	c.connections[dsn] = &dbConn{
 		id: id,
 		client:         client,
 		// uri:            uri,
@@ -100,7 +103,7 @@ func (c *connManager) create(uri *mysql.Config) (*dbConn, error) {
 
 	log.Debugf("[%s] Created new connection: %s", pluginName, uri.Addr)
 
-	return c.connections[uri], nil
+	return c.connections[dsn], nil
 }
 
 // get returns a connection with given cid if it exists and also updates lastTimeAccess, otherwise returns nil.
@@ -108,7 +111,7 @@ func (c *connManager) get(uri *mysql.Config) *dbConn {
 	c.connMutex.Lock()
 	defer c.connMutex.Unlock()
 
-	if conn, ok := c.connections[uri]; ok {
+	if conn, ok := c.connections[uri.FormatDSN()]; ok {
 		conn.updateAccessTime()
 		return conn
 	}
@@ -126,8 +129,8 @@ func (c *connManager) closeUnused() (err error) {
 		if time.Since(conn.lastTimeAccess) > c.keepAlive {
 			if err = conn.client.Close(); err == nil {
 				delete(c.connections, uri)
-				log.Errf("[%s] Closed unused connection #%d : %s sec %s", pluginName, conn.id, uri.FormatDSN(), c.keepAlive)
-				log.Debugf("[%s] Closed unused connection: %s", pluginName, uri.Addr)
+				log.Errf("[%s] Closed unused connection #%d : %s sec %s", pluginName, conn.id, uri, c.keepAlive)
+				log.Debugf("[%s] Closed unused connection: %s", pluginName, uri)
 			}
 		}
 	}
