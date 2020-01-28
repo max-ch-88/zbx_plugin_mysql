@@ -25,6 +25,7 @@ import (
 	"strings"
 	"zabbix.com/pkg/plugin"
 	"github.com/go-sql-driver/mysql"
+	"time"
 )
 
 const (
@@ -87,6 +88,21 @@ type Plugin struct {
 
 // impl is the pointer to the plugin implementation.
 var impl Plugin
+
+// Start deleting unused connections
+func (p *Plugin) Start() {
+	go func() {
+		for range time.Tick(10 * time.Second) {
+			if err := p.connMgr.closeUnused(); err != nil {
+				p.Errf("Error occurred while closing connection: %s", err.Error())
+			}
+		}
+	}()
+}
+
+// Stop deleting unused connections
+func (p *Plugin) Stop() {
+}
 
 // Export implements the Exporter interface.
 func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider) (result interface{}, err error) {

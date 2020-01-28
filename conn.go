@@ -58,13 +58,13 @@ func newConnManager(keepAlive, timeout time.Duration) *connManager {
 	}
 
 	// Repeatedly check for unused connections and close them.
-	go func() {
-		for range time.Tick(10 * time.Second) {
-			if err := connMgr.closeUnused(); err != nil {
-				log.Errf("[%s] Error occurred while closing connection: %s", pluginName, err.Error())
-			}
-		}
-	}()
+	// go func() {
+	// 	for range time.Tick(10 * time.Second) {
+	// 		if err := connMgr.closeUnused(); err != nil {
+	// 			log.Errf("[%s] Error occurred while closing connection: %s", pluginName, err.Error())
+	// 		}
+	// 	}
+	// }()
 
 	return connMgr
 }
@@ -122,7 +122,7 @@ func (c *connManager) closeUnused() (err error) {
 		if time.Since(conn.lastTimeAccess) > c.keepAlive {
 			if err = conn.client.Close(); err == nil {
 				delete(c.connections, uri)
-				log.Errf("[%s] Closed unused connection: %s", pluginName, uri.FormatDSN())
+				log.Errf("[%s] Closed unused connection: %s sec %s", pluginName, uri.FormatDSN(), c.keepAlive)
 				log.Debugf("[%s] Closed unused connection: %s", pluginName, uri.Addr)
 			}
 		}
