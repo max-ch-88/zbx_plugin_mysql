@@ -91,6 +91,7 @@ var impl Plugin
 
 // Start deleting unused connections
 func (p *Plugin) Start() {
+	// Repeatedly check for unused connections and close them.
 	go func() {
 		for range time.Tick(10 * time.Second) {
 			if err := p.connMgr.closeUnused(); err != nil {
@@ -146,7 +147,7 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 		return nil, err
 	}
 
-	p.Errf("Created connection: %s %s", mysqlConf.FormatDSN(), key)
+	p.Errf("Created connection #%d : %s %s", conn.id, mysqlConf.FormatDSN(), key)
 
 	keyProperty := keys[key]
 

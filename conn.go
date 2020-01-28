@@ -28,8 +28,10 @@ import (
 )
 
 const dbms = "mysql"
+var id = 1
 
 type dbConn struct {
+	id			   int
 	client         *sql.DB
 	// uri            *mysql.Config
 	lastTimeAccess time.Time
@@ -89,10 +91,12 @@ func (c *connManager) create(uri *mysql.Config) (*dbConn, error) {
 	}
 
 	c.connections[uri] = &dbConn{
+		id: id,
 		client:         client,
 		// uri:            uri,
 		lastTimeAccess: time.Now(),
 	}
+	id ++
 
 	log.Debugf("[%s] Created new connection: %s", pluginName, uri.Addr)
 
@@ -122,7 +126,7 @@ func (c *connManager) closeUnused() (err error) {
 		if time.Since(conn.lastTimeAccess) > c.keepAlive {
 			if err = conn.client.Close(); err == nil {
 				delete(c.connections, uri)
-				log.Errf("[%s] Closed unused connection: %s sec %s", pluginName, uri.FormatDSN(), c.keepAlive)
+				log.Errf("[%s] Closed unused connection #%d : %s sec %s", pluginName, conn.id, uri.FormatDSN(), c.keepAlive)
 				log.Debugf("[%s] Closed unused connection: %s", pluginName, uri.Addr)
 			}
 		}
