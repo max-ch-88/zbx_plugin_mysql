@@ -20,7 +20,6 @@
 package mysql
 
 import (
-	// "crypto/sha512"
 	"database/sql"
 	"github.com/go-sql-driver/mysql"
 	"sync"
@@ -28,14 +27,11 @@ import (
 	"zabbix.com/pkg/log"
 )
 
-const (
-	// clientName = "zbx_monitor"
-	dbms = "mysql"
-)
+const dbms = "mysql"
 
 type dbConn struct {
 	client         *sql.DB
-	uri            *mysql.Config
+	// uri            *mysql.Config
 	lastTimeAccess time.Time
 }
 
@@ -126,6 +122,7 @@ func (c *connManager) closeUnused() (err error) {
 		if time.Since(conn.lastTimeAccess) > c.keepAlive {
 			if err = conn.client.Close(); err == nil {
 				delete(c.connections, uri)
+				log.Errf("[%s] Closed unused connection: %s", pluginName, uri.FormatDSN())
 				log.Debugf("[%s] Closed unused connection: %s", pluginName, uri.Addr)
 			}
 		}
@@ -137,7 +134,6 @@ func (c *connManager) closeUnused() (err error) {
 
 // GetConnection returns an existing connection or creates a new one.
 func (c *connManager) GetConnection(uri *mysql.Config) (conn *dbConn, err error) {
-	// cid := createConnectionID(uri)
 
 	c.Lock()
 	defer c.Unlock()
@@ -150,9 +146,3 @@ func (c *connManager) GetConnection(uri *mysql.Config) (conn *dbConn, err error)
 
 	return
 }
-
-// createConnectionId returns sha512 hash from URI.
-// func createConnectionID(uri *mysql.Config) connID {
-// 	// TODO: add memoization
-// 	return connID(sha512.Sum512([]byte(uri.FormatDSN())))
-// }

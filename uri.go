@@ -24,17 +24,8 @@ import (
 	"net/url"
 )
 
-// type uri struct {
-// 	Scheme   string
-// 	Opaque   string // encoded opaque data
-// 	User     string // username information
-// 	Password string // password information
-// 	Host     string // host or host:port
-// }
-
 func getURI(s *Session) (result *mysql.Config, err error) {
 
-	// var uriStru uri
 	var r mysql.Config
 
 	u, err := url.Parse(s.URI)
@@ -63,54 +54,3 @@ func getURI(s *Session) (result *mysql.Config, err error) {
 
 	return &r, nil
 }
-
-// func uri2dsn (u *uri) *string {
-
-// 	var dsn string
-
-// 	if u.Scheme == "tcp" {
-// 		dsn = u.Scheme + "(" + u.Host + ")/"
-// 		if len(u.User) > 0 {
-// 			dsn = u.User + ":" + u.Password + "@" + dsn
-// 		}
-// 	}
-
-// 	if u.Scheme == "unix" {
-// 		dsn = u.Scheme + "(/" + u.Opaque + ")/"
-// 	}
-
-// 	return &dsn
-// }
-
-// func newURIWithCreds(uri string, user string, password string) (cfg *mysql.Config, err error) {
-// func newURIWithCreds(uri *string, opt *PluginOptions) (cfg *mysql.Config, err error) {	
-// 	var c *mysql.Config
-	
-// 	cfg, err = mysql.ParseDSN(*uri)
-// 	if err != nil {
-// 		return c, err
-// 	}
-
-// 	if len(*uri) == 0 {
-// 		c, err = mysql.ParseDSN(opt.URI)
-// 		if err != nil {
-// 			return c, err
-// 		}
-// 		cfg.Addr = c.Addr
-// 	}
-
-// 	if len(cfg.User) == 0 {
-// 		cfg.User = opt.User
-// 	}
-
-// 	if len(cfg.Passwd) == 0 {
-// 		cfg.Passwd = opt.Password
-// 	}
-
-// 	return cfg, nil
-// }
-
-// isUri returns true if s is URI or false if not
-// func isLooksLikeURI(s string) bool {
-// 	return strings.Contains(s, "@tcp(") || strings.Contains(s, "@unix(")
-// }

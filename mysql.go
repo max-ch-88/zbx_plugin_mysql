@@ -119,15 +119,6 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 			return nil, err
 		}
 	}
-	// fmt.Printf("%q\n", p.options)
-	
-	// connString := uri2dsn(uri)
-
-	// The first param can be either a URI or a session identifier.
-	// db, err := newURIWithCreds(uri, &p.options)
-	// if err != nil {
-	// 	return nil, err
-	// }
 
 	conn, err := p.connMgr.GetConnection(mysqlConf)
 	if err != nil {
@@ -138,6 +129,8 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 		}
 		return nil, err
 	}
+
+	p.Errf("Created connection: %s %s", mysqlConf.FormatDSN(), key)
 
 	keyProperty := keys[key]
 
@@ -204,14 +197,6 @@ func getJSON(config *dbConn, keyProperty *key) (result interface{}, err error) {
 	valuePtrs := make([]interface{}, count)
 
 	for rows.Next() {
-
-		// if !keyProperty.json {
-		// 	if err = rows.Scan(&result); err != nil {
-		// 		return nil, err
-		// 	}
-
-		// 	return result.(string), nil
-		// }
 
 		for i := 0; i < count; i++ {
 			valuePtrs[i] = &values[i]
