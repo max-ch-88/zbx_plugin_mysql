@@ -125,7 +125,7 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 	var mysqlConf *mysql.Config
 
 	if session, ok := p.options.Sessions[params[0]]; ok {
-		mysqlConf, err = getURI(session)
+		mysqlConf, err = p.getURI(session)
 		if err != nil {
 			return nil, err
 		}
@@ -137,7 +137,7 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 			url = p.options.URI
 		}
 
-		mysqlConf, err = getURI(&Session{URI: url, User: p.options.User, Password: p.options.Password})
+		mysqlConf, err = p.getURI(&Session{URI: url, User: p.options.User, Password: p.options.Password})
 		if err != nil {
 			return nil, err
 		}

@@ -22,9 +22,10 @@ package mysql
 import (
 	"github.com/go-sql-driver/mysql"
 	"net/url"
+	"time"
 )
 
-func getURI(s *Session) (result *mysql.Config, err error) {
+func (p *Plugin) getURI(s *Session) (result *mysql.Config, err error) {
 
 	var r mysql.Config
 
@@ -52,6 +53,8 @@ func getURI(s *Session) (result *mysql.Config, err error) {
 	r.Net = u.Scheme
 	r.Addr = u.Host
 	r.AllowNativePasswords = true
+	r.Timeout = time.Duration(p.options.Timeout-1)*time.Second
+	r.ReadTimeout = time.Duration(p.options.Timeout-1)*time.Second
 
 	return &r, nil
 }
