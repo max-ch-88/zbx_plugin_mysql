@@ -79,7 +79,7 @@ func (c *connManager) create(uri *mysql.Config) (*dbConn, error) {
 		return nil, err
 	}
 	
-	client.SetConnMaxLifetime(10)
+	client.SetConnMaxLifetime(time.Duration(10)*time.Second)
 	
 	if err = client.Ping(); err != nil {
 		return nil, err
