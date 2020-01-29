@@ -42,6 +42,7 @@ func getURI(s *Session) (result *mysql.Config, err error) {
 		if len(u.Opaque) == 0 {
 			return nil, errorParameterNotURI
 		}
+		u.Host = "/" + u.Opaque
 	default:
 		return nil, errorParameterNotURI
 	}
