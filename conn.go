@@ -28,7 +28,6 @@ import (
 )
 
 const dbms = "mysql"
-var id = 1
 
 type dbConn struct {
 	id			   int
@@ -59,15 +58,6 @@ func newConnManager(keepAlive, timeout time.Duration) *connManager {
 		timeout:     timeout,
 	}
 
-	// Repeatedly check for unused connections and close them.
-	// go func() {
-	// 	for range time.Tick(10 * time.Second) {
-	// 		if err := connMgr.closeUnused(); err != nil {
-	// 			log.Errf("[%s] Error occurred while closing connection: %s", pluginName, err.Error())
-	// 		}
-	// 	}
-	// }()
-
 	return connMgr
 }
 
@@ -88,21 +78,19 @@ func (c *connManager) create(uri *mysql.Config) (*dbConn, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	
+	client.SetConnMaxLifetime(10)
+	
 	if err = client.Ping(); err != nil {
 		return nil, err
 	}
 
 	c.connections[dsn] = &dbConn{
-		id: id,
 		client:         client,
-		// uri:            uri,
 		lastTimeAccess: time.Now(),
 	}
 
-	log.Errf("[%s] Created connection #%d : %s", pluginName, id, dsn)
 	log.Debugf("[%s] Created new connection: %s", pluginName, uri.Addr)
-	id ++
 
 	return c.connections[dsn], nil
 }
@@ -130,7 +118,6 @@ func (c *connManager) closeUnused() (err error) {
 		if time.Since(conn.lastTimeAccess) > c.keepAlive {
 			if err = conn.client.Close(); err == nil {
 				delete(c.connections, uri)
-				log.Errf("[%s] Closed unused connection #%d : %s sec %s", pluginName, conn.id, uri, c.keepAlive)
 				log.Debugf("[%s] Closed unused connection: %s", pluginName, uri)
 			}
 		}
