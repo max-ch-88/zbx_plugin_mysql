@@ -33,7 +33,7 @@ const dbms = "mysql"
 var id = 1
 
 type dbConn struct {
-	id     int
+	// id     int
 	client *sql.DB
 	// uri            *mysql.Config
 	lastTimeAccess time.Time
@@ -82,20 +82,17 @@ func (c *connManager) create(uri *mysql.Config) (*dbConn, error) {
 		return nil, err
 	}
 
-	// client.SetConnMaxLifetime(time.Duration(60) * time.Second)
-
 	if err = client.Ping(); err != nil {
 		return nil, err
 	}
 
 	c.connections[dsn] = &dbConn{
-		id:             id,
+		// id:             id,
 		client:         client,
 		lastTimeAccess: time.Now(),
 	}
-	log.Errf("[%s] Created connection #%d : %s", pluginName, id, dsn)
 	log.Debugf("[%s] Created new connection: %s", pluginName, uri.Addr)
-	id++
+	// id++
 
 	return c.connections[dsn], nil
 }
@@ -124,7 +121,6 @@ func (c *connManager) closeUnused() (err error) {
 		if time.Since(conn.lastTimeAccess) > c.keepAlive {
 			if err = conn.client.Close(); err == nil {
 				delete(c.connections, uri)
-				log.Errf("[%s] Closed the unused connection #%d : %s sec %s", pluginName, conn.id, uri, c.keepAlive)
 				log.Debugf("[%s] Closed the unused connection: %s", pluginName, uri)
 			}
 		}
@@ -144,7 +140,6 @@ func (c *connManager) delete(uri *mysql.Config) (err error) {
 	if conn, ok := c.connections[dsn]; ok {
 		if err = conn.client.Close(); err == nil {
 			delete(c.connections, dsn)
-			log.Errf("[%s] Closed the killed connection #%d : %s sec %s", pluginName, conn.id, uri, c.keepAlive)
 			log.Debugf("[%s] Closed the killed connection: %s", pluginName, uri)
 		}
 	}
@@ -164,7 +159,6 @@ func (c *connManager) GetConnection(uri *mysql.Config) (conn *dbConn, err error)
 		conn, err = c.create(uri)
 	} else {
 		if err = conn.client.Ping(); err != nil {
-			// fmt.Printf("%+v", err)
 			if strings.Contains(err.Error(), "Connection was killed") {
 				if c.delete(uri) == nil {
 					err = errorConnectionKilled
