@@ -81,7 +81,7 @@ func (c *connManager) create(uri *mysql.Config) (*dbConn, error) {
 		return nil, err
 	}
 
-	client.SetConnMaxLifetime(time.Duration(10) * time.Second)
+	// client.SetConnMaxLifetime(time.Duration(10) * time.Second)
 
 	if err = client.Ping(); err != nil {
 		return nil, err
@@ -100,16 +100,21 @@ func (c *connManager) create(uri *mysql.Config) (*dbConn, error) {
 }
 
 // get returns a connection with given cid if it exists and also updates lastTimeAccess, otherwise returns nil.
-func (c *connManager) get(uri *mysql.Config) *dbConn {
+func (c *connManager) get(uri *mysql.Config) (conn *dbConn, err error) {
 	c.connMutex.Lock()
 	defer c.connMutex.Unlock()
 
 	if conn, ok := c.connections[uri.FormatDSN()]; ok {
+
+		if err = conn.client.Ping(); err != nil {
+			return nil, err
+		}
+		
 		conn.updateAccessTime()
-		return conn
+		return conn, nil
 	}
 
-	return nil
+	return nil, errorConnectionNotFound
 }
 
 // CloseUnused closes each connection that has not been accessed at least within the keepalive interval.
@@ -138,9 +143,9 @@ func (c *connManager) GetConnection(uri *mysql.Config) (conn *dbConn, err error)
 	c.Lock()
 	defer c.Unlock()
 
-	conn = c.get(uri)
+	conn, err = c.get(uri)
 
-	if conn == nil {
+	if err != nil {
 		conn, err = c.create(uri)
 	}
 
