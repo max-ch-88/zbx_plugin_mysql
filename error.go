@@ -39,6 +39,7 @@ const (
 	errorUnknownSession			= zabbixError("Unknown session.")
 	errorParameterNotURI		= zabbixError("The first parameter is not URI.")
 	errorConnectionNotFound		= zabbixError("Active connection is not found.")
+	errorConnectionKilled		= zabbixError("Connection was killed.")
 )
 
 // formatZabbixError formats a given error text. It capitalizes the first letter and adds a dot to the end.

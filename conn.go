@@ -25,6 +25,7 @@ import (
 	"sync"
 	"time"
 	"zabbix.com/pkg/log"
+	"strings"
 )
 
 const dbms = "mysql"
@@ -81,7 +82,7 @@ func (c *connManager) create(uri *mysql.Config) (*dbConn, error) {
 		return nil, err
 	}
 
-	client.SetConnMaxLifetime(time.Duration(60) * time.Second)
+	// client.SetConnMaxLifetime(time.Duration(60) * time.Second)
 
 	if err = client.Ping(); err != nil {
 		return nil, err
@@ -106,11 +107,6 @@ func (c *connManager) get(uri *mysql.Config) (conn *dbConn, err error) {
 	defer c.connMutex.Unlock()
 
 	if conn, ok := c.connections[uri.FormatDSN()]; ok {
-
-		// if err = conn.client.Ping(); err != nil {
-		// 	return nil, err
-		// }
-		
 		conn.updateAccessTime()
 		return conn, nil
 	}
@@ -128,13 +124,31 @@ func (c *connManager) closeUnused() (err error) {
 		if time.Since(conn.lastTimeAccess) > c.keepAlive {
 			if err = conn.client.Close(); err == nil {
 				delete(c.connections, uri)
-				log.Errf("[%s] Closed unused connection #%d : %s sec %s", pluginName, conn.id, uri, c.keepAlive)
-				log.Debugf("[%s] Closed unused connection: %s", pluginName, uri)
+				log.Errf("[%s] Closed the unused connection #%d : %s sec %s", pluginName, conn.id, uri, c.keepAlive)
+				log.Debugf("[%s] Closed the unused connection: %s", pluginName, uri)
 			}
 		}
 	}
 
 	// Return the last error only.
+	return
+}
+
+func (c *connManager) delete(uri *mysql.Config) (err error) {
+
+	c.connMutex.Lock()
+	defer c.connMutex.Unlock()
+
+	dsn := uri.FormatDSN()
+
+	if conn, ok := c.connections[dsn]; ok {
+		if err = conn.client.Close(); err == nil {
+			delete(c.connections, dsn)
+			log.Errf("[%s] Closed the killed connection #%d : %s sec %s", pluginName, conn.id, uri, c.keepAlive)
+			log.Debugf("[%s] Closed the killed connection: %s", pluginName, uri)
+		}
+	}
+	
 	return
 }
 
@@ -150,6 +164,12 @@ func (c *connManager) GetConnection(uri *mysql.Config) (conn *dbConn, err error)
 		conn, err = c.create(uri)
 	} else {
 		if err = conn.client.Ping(); err != nil {
+			// fmt.Printf("%+v", err)
+			if strings.Contains(err.Error(), "Connection was killed") {
+				if c.delete(uri) == nil {
+					err = errorConnectionKilled
+				}
+			} 
 			return nil, err
 		}
 	}
