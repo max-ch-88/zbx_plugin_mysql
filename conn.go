@@ -101,14 +101,15 @@ func (c *connManager) create(uri *mysql.Config) (*dbConn, error) {
 
 // get returns a connection with given cid if it exists and also updates lastTimeAccess, otherwise returns nil.
 func (c *connManager) get(uri *mysql.Config) (conn *dbConn, err error) {
+	
 	c.connMutex.Lock()
 	defer c.connMutex.Unlock()
 
 	if conn, ok := c.connections[uri.FormatDSN()]; ok {
 
-		if err = conn.client.Ping(); err != nil {
-			return nil, err
-		}
+		// if err = conn.client.Ping(); err != nil {
+		// 	return nil, err
+		// }
 		
 		conn.updateAccessTime()
 		return conn, nil
@@ -147,6 +148,10 @@ func (c *connManager) GetConnection(uri *mysql.Config) (conn *dbConn, err error)
 
 	if err != nil {
 		conn, err = c.create(uri)
+	} else {
+		if err = conn.client.Ping(); err != nil {
+			return nil, err
+		}
 	}
 
 	return
