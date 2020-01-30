@@ -40,10 +40,10 @@ func (p *Plugin) getURI(s *Session) (result *mysql.Config, err error) {
 			return nil, errorParameterNotURI
 		}
 	case "unix":
-		if len(u.Opaque) == 0 {
+		if len(u.Path) == 0 {
 			return nil, errorParameterNotURI
 		}
-		u.Host = "/" + u.Opaque
+		u.Host = u.Path
 	default:
 		return nil, errorParameterNotURI
 	}
