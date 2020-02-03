@@ -20,41 +20,52 @@
 package mysql
 
 import (
-	"github.com/go-sql-driver/mysql"
 	"net/url"
 	"time"
+
+	"github.com/go-sql-driver/mysql"
 )
 
-func (p *Plugin) getURI(s *Session) (result *mysql.Config, err error) {
+func checkURI(s *Session) (sessionURL *url.URL, err error) {
 
-	var r mysql.Config
-
-	u, err := url.Parse(s.URI)
+	sessionURL, err = url.Parse(s.URI) 
 	if err != nil {
 		return nil, err
 	}
 
-	switch u.Scheme {
+	switch sessionURL.Scheme {
 	case "tcp":
-		if len(u.Host) == 0 {
+		if len(sessionURL.Host) == 0 {
 			return nil, errorParameterNotURI
 		}
 	case "unix":
-		if len(u.Path) == 0 {
+		if len(sessionURL.Path) == 0 {
 			return nil, errorParameterNotURI
 		}
-		u.Host = u.Path
+		sessionURL.Host = sessionURL.Path
 	default:
 		return nil, errorParameterNotURI
 	}
 
-	r.User = s.User
-	r.Passwd = s.Password
-	r.Net = u.Scheme
-	r.Addr = u.Host
-	r.AllowNativePasswords = true
-	r.Timeout = time.Duration(p.options.Timeout-1)*time.Second
-	r.ReadTimeout = time.Duration(p.options.Timeout-1)*time.Second
+	return sessionURL, nil
+}
 
-	return &r, nil
+func (p *Plugin) getConfigDSN(s *Session) (result *mysql.Config, err error) {
+
+	sessionURL, err := checkURI(s)
+	if err != nil {
+		return nil, err
+	} 
+
+	result = &mysql.Config { 
+		User: s.User,
+		Passwd: s.Password,
+		Net: sessionURL.Scheme,
+		Addr: sessionURL.Host,
+		AllowNativePasswords: true,
+		Timeout: time.Duration(p.options.Timeout-1) * time.Second,
+		ReadTimeout: time.Duration(p.options.Timeout-1) * time.Second,
+	} 
+
+	return
 }

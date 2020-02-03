@@ -20,13 +20,14 @@
 package mysql
 
 import (
-	"encoding/json"
-	"fmt"
-	"strings"
-	"zabbix.com/pkg/plugin"
-	"github.com/go-sql-driver/mysql"
-	"time"
 	"context"
+	"database/sql"
+	"encoding/json"
+	"strings"
+	"time"
+
+	"github.com/go-sql-driver/mysql"
+	"zabbix.com/pkg/plugin"
 )
 
 const (
@@ -87,6 +88,8 @@ type Plugin struct {
 	options PluginOptions
 }
 
+type columnName = string
+
 // impl is the pointer to the plugin implementation.
 var impl Plugin
 
@@ -125,7 +128,7 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 	var mysqlConf *mysql.Config
 
 	if session, ok := p.options.Sessions[params[0]]; ok {
-		mysqlConf, err = p.getURI(session)
+		mysqlConf, err = p.getConfigDSN(session)
 		if err != nil {
 			return nil, err
 		}
@@ -137,7 +140,7 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 			url = p.options.URI
 		}
 
-		mysqlConf, err = p.getURI(&Session{URI: url, User: p.options.User, Password: p.options.Password})
+		mysqlConf, err = p.getConfigDSN(&Session{URI: url, User: p.options.User, Password: p.options.Password})
 		if err != nil {
 			return nil, err
 		}
@@ -153,59 +156,46 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 		return nil, err
 	}
 
-	keyProperty := keys[key]
+	keyProperties := keys[key]
 
 	if key == "mysql.dbsize" {
 		if len(params[1]) == 0 {
 			return nil, errorDBnameMissing
 		}
-		
-		if result, err = getSingleton(conn, &keyProperty, params[1]); err != nil {
-			return nil, err
-		}
 
-		if result == nil {
-			err = errorUnknownDBname
+		if result, err = getOne(conn, &keyProperties, params[1]); err != nil {
+			return nil, err
 		}
 
 		return
 	}
 
-	if keyProperty.json {
-		return getJSON(conn, &keyProperty)
+	if keyProperties.json {
+		return getJSON(conn, &keyProperties)
 	}
 
-	return getSingleton(conn, &keyProperty, "")
+	return getOne(conn, &keyProperties, "")
 }
 
 // Get a single value
-func getSingleton(config *dbConn, keyProperty *key, arg string) (result interface{}, err error) {
+func getOne(config *dbConn, keyProperties *key, arg string) (result interface{}, err error) {
 
 	if len(arg) > 0 {
-		err = config.client.QueryRow(keyProperty.query, arg).Scan(&result)
+		err = config.connection.QueryRow(keyProperties.query, arg).Scan(&result)
 	} else {
-		err = config.client.QueryRow(keyProperty.query).Scan(&result)
-	}
-
-	if err != nil {
-		return nil, err
+		err = config.connection.QueryRow(keyProperties.query).Scan(&result)
 	}
 
 	if result == nil {
-		return nil, nil
+		err = errorUnknownDBname
+	} else {
+		result = string(result.([]byte))
 	}
 
-	return fmt.Sprintf("%s", result), nil
+	return
 }
 
-// Get a set of values in JSON format
-func getJSON(config *dbConn, keyProperty *key) (result interface{}, err error) {
-
-	rows, err := config.client.Query(keyProperty.query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+func rows2JSON(rows *sql.Rows, keyProperties *key) (result interface{}, err error) {
 
 	columns, err := rows.Columns()
 	if err != nil {
@@ -213,33 +203,28 @@ func getJSON(config *dbConn, keyProperty *key) (result interface{}, err error) {
 	}
 
 	count := len(columns)
-	tableData := make([]map[string]interface{}, 0)
+	tableData := make([]map[columnName]string, 0)
 	values := make([]interface{}, count)
 	valuePtrs := make([]interface{}, count)
 
+	for i := 0; i < count; i++ {
+		valuePtrs[i] = &values[i]
+	}
+
 	for rows.Next() {
 
-		for i := 0; i < count; i++ {
-			valuePtrs[i] = &values[i]
+		if err = rows.Scan(valuePtrs...); err != nil {
+			return
 		}
 
-		rows.Scan(valuePtrs...)
-		entry := make(map[string]interface{})
+		entry := make(map[columnName]string)
 
 		for i, col := range columns {
-			var v interface{}
-			val := values[i]
-			b, ok := val.([]byte)
-			if ok {
-				v = string(b)
-			} else {
-				v = val
-			}
-			//For LLD JSON make keys in uppercase
-			if keyProperty.lld {
+			// For LLD JSON make keys in uppercase
+			if keyProperties.lld {
 				col = "{#" + strings.ToUpper(col) + "}"
 			}
-			entry[col] = v
+			entry[col] = string(values[i].([]byte))
 		}
 
 		tableData = append(tableData, entry)
@@ -251,6 +236,20 @@ func getJSON(config *dbConn, keyProperty *key) (result interface{}, err error) {
 	}
 
 	return string(jsonData), nil
+}
+
+// Get a set of values in JSON format
+func getJSON(config *dbConn, keyProperties *key) (result interface{}, err error) {
+
+	rows, err := config.connection.Query(keyProperties.query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result, err = rows2JSON(rows, keyProperties)
+
+	return
 }
 
 // init registers metrics.

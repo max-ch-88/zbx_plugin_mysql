@@ -21,29 +21,28 @@ package mysql
 
 import (
 	"database/sql"
-	"github.com/go-sql-driver/mysql"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/go-sql-driver/mysql"
 	"zabbix.com/pkg/log"
-	"strings"
 )
 
 const dbms = "mysql"
 
-var id = 1
-
 type dbConn struct {
-	// id     int
-	client *sql.DB
-	// uri            *mysql.Config
-	lastTimeAccess time.Time
+	connection 		*sql.DB
+	lastTimeAccess	time.Time
 }
+
+type dsn = string
 
 // Thread-safe structure for manage connections.
 type connManager struct {
 	sync.Mutex
 	connMutex   sync.Mutex
-	connections map[string]*dbConn
+	connections map[dsn]*dbConn
 	keepAlive   time.Duration
 	timeout     time.Duration
 }
@@ -56,7 +55,7 @@ func (r *dbConn) updateAccessTime() {
 // NewConnManager initializes connManager structure and runs Go Routine that watches for unused connections.
 func newConnManager(keepAlive, timeout time.Duration) *connManager {
 	connMgr := &connManager{
-		connections: make(map[string]*dbConn),
+		connections: make(map[dsn]*dbConn),
 		keepAlive:   keepAlive,
 		timeout:     timeout,
 	}
@@ -65,45 +64,43 @@ func newConnManager(keepAlive, timeout time.Duration) *connManager {
 }
 
 // create creates a new connection with a given URI and password.
-func (c *connManager) create(uri *mysql.Config) (*dbConn, error) {
+func (c *connManager) create(mysqlConf *mysql.Config) (*dbConn, error) {
 
 	c.connMutex.Lock()
 	defer c.connMutex.Unlock()
 
-	dsn := uri.FormatDSN()
+	dsn := mysqlConf.FormatDSN()
 
 	if _, ok := c.connections[dsn]; ok {
 		// Should never happen.
 		panic("connection already exists")
 	}
 
-	client, err := sql.Open(dbms, dsn)
+	conn, err := sql.Open(dbms, dsn)
 	if err != nil {
 		return nil, err
 	}
 
-	if err = client.Ping(); err != nil {
+	if err = conn.Ping(); err != nil {
 		return nil, err
 	}
 
 	c.connections[dsn] = &dbConn{
-		// id:             id,
-		client:         client,
+		connection:     conn,
 		lastTimeAccess: time.Now(),
 	}
-	log.Debugf("[%s] Created new connection: %s", pluginName, uri.Addr)
-	// id++
+	log.Debugf("[%s] Created new connection: %s", pluginName, mysqlConf.Addr)
 
 	return c.connections[dsn], nil
 }
 
 // get returns a connection with given cid if it exists and also updates lastTimeAccess, otherwise returns nil.
-func (c *connManager) get(uri *mysql.Config) (conn *dbConn, err error) {
-	
+func (c *connManager) get(mysqlConf *mysql.Config) (conn *dbConn, err error) {
+
 	c.connMutex.Lock()
 	defer c.connMutex.Unlock()
 
-	if conn, ok := c.connections[uri.FormatDSN()]; ok {
+	if conn, ok := c.connections[mysqlConf.FormatDSN()]; ok {
 		conn.updateAccessTime()
 		return conn, nil
 	}
@@ -117,11 +114,12 @@ func (c *connManager) closeUnused() (err error) {
 	c.connMutex.Lock()
 	defer c.connMutex.Unlock()
 
-	for uri, conn := range c.connections {
+	for dsn, conn := range c.connections {
 		if time.Since(conn.lastTimeAccess) > c.keepAlive {
-			if err = conn.client.Close(); err == nil {
-				delete(c.connections, uri)
-				log.Debugf("[%s] Closed the unused connection: %s", pluginName, uri)
+			if err = conn.connection.Close(); err == nil {
+				delete(c.connections, dsn)
+				host, _ := mysql.ParseDSN(dsn)
+				log.Debugf("[%s] Closed the unused connection: %s", pluginName, host.Addr)
 			}
 		}
 	}
@@ -130,40 +128,41 @@ func (c *connManager) closeUnused() (err error) {
 	return
 }
 
-func (c *connManager) delete(uri *mysql.Config) (err error) {
+func (c *connManager) delete(mysqlConf *mysql.Config) (err error) {
 
 	c.connMutex.Lock()
 	defer c.connMutex.Unlock()
 
-	dsn := uri.FormatDSN()
+	dsn := mysqlConf.FormatDSN()
 
 	if conn, ok := c.connections[dsn]; ok {
-		if err = conn.client.Close(); err == nil {
+		if err = conn.connection.Close(); err == nil {
 			delete(c.connections, dsn)
-			log.Debugf("[%s] Closed the killed connection: %s", pluginName, uri)
+			host, _ := mysql.ParseDSN(dsn)
+			log.Debugf("[%s] Closed the killed connection: %s", pluginName, host.Addr)
 		}
 	}
-	
+
 	return
 }
 
 // GetConnection returns an existing connection or creates a new one.
-func (c *connManager) GetConnection(uri *mysql.Config) (conn *dbConn, err error) {
+func (c *connManager) GetConnection(mysqlConf *mysql.Config) (conn *dbConn, err error) {
 
 	c.Lock()
 	defer c.Unlock()
 
-	conn, err = c.get(uri)
+	conn, err = c.get(mysqlConf)
 
 	if err != nil {
-		conn, err = c.create(uri)
+		conn, err = c.create(mysqlConf)
 	} else {
-		if err = conn.client.Ping(); err != nil {
+		if err = conn.connection.Ping(); err != nil {
 			if strings.Contains(err.Error(), "Connection was killed") {
-				if c.delete(uri) == nil {
+				if c.delete(mysqlConf) == nil {
 					err = errorConnectionKilled
 				}
-			} 
+			}
 			return nil, err
 		}
 	}

@@ -21,11 +21,13 @@ package mysql
 
 import (
 	"time"
+	"fmt"
+
 	"zabbix.com/pkg/conf"
 	"zabbix.com/pkg/plugin"
 )
 
-//Session struct 
+//Session struct
 type Session struct {
 	// URI is a connection string consisting of a network scheme, a host address and a port or a path to a Unix-socket.
 	URI string `conf:"optional"`
@@ -37,7 +39,7 @@ type Session struct {
 	Password string `conf:"optional"`
 }
 
-// PluginOptions option from config file 
+// PluginOptions option from config file
 type PluginOptions struct {
 	// URI is the default connection string.
 	URI string `conf:"default=tcp://localhost:3306"`
@@ -56,7 +58,7 @@ type PluginOptions struct {
 
 	// Sessions stores pre-defined named sets of connections settings.
 	// Sessions map[string]*Session `conf:"optional"`
-	Sessions map[string] *Session `conf:"optional"`
+	Sessions map[string]*Session `conf:"optional"`
 }
 
 // Configure implements the Configurator interface.
@@ -70,7 +72,7 @@ func (p *Plugin) Configure(global *plugin.GlobalOptions, options interface{}) {
 	if p.options.Timeout == 0 {
 		p.options.Timeout = global.Timeout
 	}
-	
+
 	for _, session := range p.options.Sessions {
 		if session.URI == "" {
 			session.URI = p.options.URI
@@ -91,11 +93,25 @@ func (p *Plugin) Configure(global *plugin.GlobalOptions, options interface{}) {
 func (p *Plugin) Validate(options interface{}) error {
 	var opts PluginOptions
 	var err error
+	fmt.Println("Start config test.")
 
 	err = conf.Unmarshal(options, &opts)
 	if err != nil {
 		return err
 	}
+	
+	_, err = checkURI(&Session{URI: opts.URI, User: opts.User, Password: opts.Password})
+	if err != nil {
+		return err
+	}
 
+	for _, s := range opts.Sessions {
+		_, err = checkURI(&Session{URI: s.URI, User: s.User, Password: s.Password})
+		if err != nil {
+			return err
+		}
+	}
+
+	fmt.Println("Config is OK.")
 	return err
 }

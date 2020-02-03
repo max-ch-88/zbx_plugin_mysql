@@ -26,20 +26,13 @@ type zabbixError string
 func (e zabbixError) Error() string { return string(e) }
 
 const (
-	errorTooManyParameters 		= zabbixError("Too many parameters.")
-	errorTooFewParameters		= zabbixError("Too few parameters.")
-	errorDBnameMissing			= zabbixError("There is no database name as the second parameter.")
-	errorUnknownDBname			= zabbixError("Unknown database name.")
-	errorCannotFetchData   		= zabbixError("Cannot fetch data.")
-	errorCannotParseData   		= zabbixError("Cannot parse data.")
-	errorCannotMarshalJSON 		= zabbixError("Cannot marshal JSON.")
-	errorUnsupportedMetric 		= zabbixError("Unsupported metric.")
-	errorInvalidFormat     		= zabbixError("Invalid format.")
-	errorEmptyResult       		= zabbixError("Empty result.")
-	errorUnknownSession			= zabbixError("Unknown session.")
-	errorParameterNotURI		= zabbixError("The first parameter is not URI.")
-	errorConnectionNotFound		= zabbixError("Active connection is not found.")
-	errorConnectionKilled		= zabbixError("Connection was killed.")
+	errorTooManyParameters  = zabbixError("Too many parameters.")
+	errorTooFewParameters   = zabbixError("Too few parameters.")
+	errorDBnameMissing      = zabbixError("There is no database name as the second parameter.")
+	errorUnknownDBname      = zabbixError("Unknown database name.")
+	errorParameterNotURI    = zabbixError("The first parameter is not URI or session.")
+	errorConnectionNotFound = zabbixError("Active connection is not found.")
+	errorConnectionKilled   = zabbixError("Connection was killed.")
 )
 
 // formatZabbixError formats a given error text. It capitalizes the first letter and adds a dot to the end.
