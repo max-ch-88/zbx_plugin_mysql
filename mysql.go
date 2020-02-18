@@ -26,6 +26,7 @@ import (
 	"strings"
 	"time"
 
+	"zabbix.com/pkg/log"
 	"zabbix.com/pkg/plugin"
 )
 
@@ -97,8 +98,7 @@ var ctx, cancel = context.WithCancel(context.Background())
 
 // Start deleting unused connections
 func (p *Plugin) Start() {
-
-	p.connMgr = newConnManager(0, 0)
+	log.Debugf("[%s] func Start", pluginName)
 
 	// Repeatedly check for unused connections and close them.
 	go func(ctx context.Context) {
@@ -119,12 +119,15 @@ func (p *Plugin) Start() {
 
 // Stop deleting unused connections
 func (p *Plugin) Stop() {
+	log.Debugf("[%s] func Stop", pluginName)
+
 	<-forever
 	cancel()
 }
 
 // Export implements the Exporter interface.
 func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider) (result interface{}, err error) {
+	log.Debugf("[%s] func Export", pluginName)
 
 	if len(params) > keys[key].maxParams {
 		return nil, errorTooManyParameters
@@ -138,9 +141,9 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 	if !ok {
 		url := params[0]
 		if len(url) == 0 {
-			url = p.options.URI
+			url = p.options.Uri
 		}
-		session = &Session{URI: url, User: p.options.User, Password: p.options.Password}
+		session = &Session{Uri: url, User: p.options.User, Password: p.options.Password}
 	}
 
 	mysqlConf, err := p.getConfigDSN(session)

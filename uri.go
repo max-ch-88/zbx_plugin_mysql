@@ -28,7 +28,7 @@ import (
 
 func checkURI(s *Session) (sessionURL *url.URL, err error) {
 
-	sessionURL, err = url.Parse(s.URI)
+	sessionURL, err = url.Parse(s.Uri)
 	if err != nil {
 		return nil, err
 	}

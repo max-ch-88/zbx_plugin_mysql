@@ -30,7 +30,7 @@ import (
 //Session struct
 type Session struct {
 	// URI is a connection string consisting of a network scheme, a host address and a port or a path to a Unix-socket.
-	URI string `conf:"optional"`
+	Uri string `conf:"optional"`
 
 	// User to send to protected MySQL server.
 	User string `conf:"optional"`
@@ -42,7 +42,7 @@ type Session struct {
 // PluginOptions option from config file
 type PluginOptions struct {
 	// URI is the default connection string.
-	URI string `conf:"default=tcp://localhost:3306"`
+	Uri string `conf:"default=tcp://localhost:3306"`
 
 	// User is the default user.
 	User string `conf:"default=root"`
@@ -65,6 +65,8 @@ type PluginOptions struct {
 // Initializes configuration structures.
 func (p *Plugin) Configure(global *plugin.GlobalOptions, options interface{}) {
 
+	log.Debugf("[%s] Start configuring...", pluginName)
+
 	if err := conf.Unmarshal(options, &p.options); err != nil {
 		p.Errf("cannot unmarshal configuration options: %s", err)
 	}
@@ -74,8 +76,8 @@ func (p *Plugin) Configure(global *plugin.GlobalOptions, options interface{}) {
 	}
 
 	for _, session := range p.options.Sessions {
-		if session.URI == "" {
-			session.URI = p.options.URI
+		if session.Uri == "" {
+			session.Uri = p.options.Uri
 		}
 		if session.User == "" {
 			session.User = p.options.User
@@ -83,11 +85,11 @@ func (p *Plugin) Configure(global *plugin.GlobalOptions, options interface{}) {
 		}
 	}
 
-	// p.connMgr = newConnManager(
-	// 	time.Duration(p.options.KeepAlive)*time.Second,
-	// 	time.Duration(p.options.Timeout)*time.Second)
-	p.connMgr.keepAlive = time.Duration(p.options.KeepAlive) * time.Second
-	p.connMgr.timeout = time.Duration(p.options.Timeout) * time.Second
+	p.connMgr = newConnManager(
+		time.Duration(p.options.KeepAlive)*time.Second,
+		time.Duration(p.options.Timeout)*time.Second)
+
+	log.Debugf("[%s] Configuring is complete.", pluginName)
 }
 
 // Validate implements the Configurator interface.
@@ -96,26 +98,26 @@ func (p *Plugin) Validate(options interface{}) error {
 	var opts PluginOptions
 	var err error
 
-	log.Debugf("Start config validation...")
+	log.Debugf("[%s] Start config validation...", pluginName)
 
 	err = conf.Unmarshal(options, &opts)
 	if err != nil {
 		return err
 	}
 
-	_, err = checkURI(&Session{URI: opts.URI, User: opts.User, Password: opts.Password})
+	_, err = checkURI(&Session{Uri: opts.Uri, User: opts.User, Password: opts.Password})
 	if err != nil {
 		return err
 	}
 
 	for _, s := range opts.Sessions {
-		_, err = checkURI(&Session{URI: s.URI, User: s.User, Password: s.Password})
+		_, err = checkURI(&Session{Uri: s.Uri, User: s.User, Password: s.Password})
 		if err != nil {
 			return err
 		}
 	}
 
-	log.Debugf("Config is OK.")
+	log.Debugf("[%s] Config is valid.", pluginName)
 
 	return err
 }
