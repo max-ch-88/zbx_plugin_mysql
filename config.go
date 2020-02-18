@@ -21,9 +21,9 @@ package mysql
 
 import (
 	"time"
-	"fmt"
 
 	"zabbix.com/pkg/conf"
+	"zabbix.com/pkg/log"
 	"zabbix.com/pkg/plugin"
 )
 
@@ -83,9 +83,11 @@ func (p *Plugin) Configure(global *plugin.GlobalOptions, options interface{}) {
 		}
 	}
 
-	p.connMgr = newConnManager(
-		time.Duration(p.options.KeepAlive)*time.Second,
-		time.Duration(p.options.Timeout)*time.Second)
+	// p.connMgr = newConnManager(
+	// 	time.Duration(p.options.KeepAlive)*time.Second,
+	// 	time.Duration(p.options.Timeout)*time.Second)
+	p.connMgr.keepAlive = time.Duration(p.options.KeepAlive) * time.Second
+	p.connMgr.timeout = time.Duration(p.options.Timeout) * time.Second
 }
 
 // Validate implements the Configurator interface.
@@ -93,13 +95,14 @@ func (p *Plugin) Configure(global *plugin.GlobalOptions, options interface{}) {
 func (p *Plugin) Validate(options interface{}) error {
 	var opts PluginOptions
 	var err error
-	fmt.Println("Start config test.")
+
+	log.Debugf("Start config validation...")
 
 	err = conf.Unmarshal(options, &opts)
 	if err != nil {
 		return err
 	}
-	
+
 	_, err = checkURI(&Session{URI: opts.URI, User: opts.User, Password: opts.Password})
 	if err != nil {
 		return err
@@ -112,6 +115,7 @@ func (p *Plugin) Validate(options interface{}) error {
 		}
 	}
 
-	fmt.Println("Config is OK.")
+	log.Debugf("Config is OK.")
+
 	return err
 }

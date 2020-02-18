@@ -28,7 +28,7 @@ import (
 
 func checkURI(s *Session) (sessionURL *url.URL, err error) {
 
-	sessionURL, err = url.Parse(s.URI) 
+	sessionURL, err = url.Parse(s.URI)
 	if err != nil {
 		return nil, err
 	}
@@ -55,17 +55,17 @@ func (p *Plugin) getConfigDSN(s *Session) (result *mysql.Config, err error) {
 	sessionURL, err := checkURI(s)
 	if err != nil {
 		return nil, err
-	} 
+	}
 
-	result = &mysql.Config { 
-		User: s.User,
-		Passwd: s.Password,
-		Net: sessionURL.Scheme,
-		Addr: sessionURL.Host,
+	result = &mysql.Config{
+		User:                 s.User,
+		Passwd:               s.Password,
+		Net:                  sessionURL.Scheme,
+		Addr:                 sessionURL.Host,
 		AllowNativePasswords: true,
-		Timeout: time.Duration(p.options.Timeout-1) * time.Second,
-		ReadTimeout: time.Duration(p.options.Timeout-1) * time.Second,
-	} 
+		Timeout:              time.Duration(p.options.Timeout-1) * time.Second,
+		ReadTimeout:          time.Duration(p.options.Timeout-1) * time.Second,
+	}
 
 	return
 }

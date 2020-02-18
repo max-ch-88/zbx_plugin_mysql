@@ -26,7 +26,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-sql-driver/mysql"
 	"zabbix.com/pkg/plugin"
 )
 
@@ -98,11 +97,21 @@ var ctx, cancel = context.WithCancel(context.Background())
 
 // Start deleting unused connections
 func (p *Plugin) Start() {
+
+	p.connMgr = newConnManager(0, 0)
+
 	// Repeatedly check for unused connections and close them.
 	go func(ctx context.Context) {
-		for range time.Tick(10 * time.Second) {
-			if err := p.connMgr.closeUnused(); err != nil {
-				p.Errf("Error occurred while closing connection: %s", err.Error())
+		ticker := time.NewTicker(10 * time.Second)
+		for {
+			select {
+			case <-ctx.Done():
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				if err := p.connMgr.closeUnused(); err != nil {
+					p.Errf("Error occurred while closing connection: %s", err.Error())
+				}
 			}
 		}
 	}(ctx)
@@ -125,25 +134,18 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 		return nil, errorTooFewParameters
 	}
 
-	var mysqlConf *mysql.Config
-
-	if session, ok := p.options.Sessions[params[0]]; ok {
-		mysqlConf, err = p.getConfigDSN(session)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-
+	session, ok := p.options.Sessions[params[0]]
+	if !ok {
 		url := params[0]
-
 		if len(url) == 0 {
 			url = p.options.URI
 		}
+		session = &Session{URI: url, User: p.options.User, Password: p.options.Password}
+	}
 
-		mysqlConf, err = p.getConfigDSN(&Session{URI: url, User: p.options.User, Password: p.options.Password})
-		if err != nil {
-			return nil, err
-		}
+	mysqlConf, err := p.getConfigDSN(session)
+	if err != nil {
+		return nil, err
 	}
 
 	conn, err := p.connMgr.GetConnection(mysqlConf)
@@ -163,8 +165,12 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 			return nil, errorDBnameMissing
 		}
 
-		if result, err = getOne(conn, &keyProperties, params[1]); err != nil {
-			return nil, err
+		result, err = getOne(conn, &keyProperties, params[1])
+		if err != nil {
+			return
+		}
+		if result == "" {
+			return nil, errorUnknownDBname
 		}
 
 		return
@@ -174,25 +180,22 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 		return getJSON(conn, &keyProperties)
 	}
 
-	return getOne(conn, &keyProperties, "")
+	return getOne(conn, &keyProperties)
 }
 
 // Get a single value
-func getOne(config *dbConn, keyProperties *key, arg string) (result interface{}, err error) {
+func getOne(config *dbConn, keyProperties *key, args ...interface{}) (result interface{}, err error) {
 
-	if len(arg) > 0 {
-		err = config.connection.QueryRow(keyProperties.query, arg).Scan(&result)
-	} else {
-		err = config.connection.QueryRow(keyProperties.query).Scan(&result)
+	var col interface{}
+	if err = config.connection.QueryRow(keyProperties.query, args...).Scan(&col); err != nil {
+		return
 	}
 
-	if result == nil {
-		err = errorUnknownDBname
-	} else {
-		result = string(result.([]byte))
+	if col == nil {
+		return "", nil
 	}
 
-	return
+	return string(col.([]byte)), nil
 }
 
 func rows2JSON(rows *sql.Rows, keyProperties *key) (result interface{}, err error) {

@@ -32,8 +32,8 @@ import (
 const dbms = "mysql"
 
 type dbConn struct {
-	connection 		*sql.DB
-	lastTimeAccess	time.Time
+	connection     *sql.DB
+	lastTimeAccess time.Time
 }
 
 type dsn = string
