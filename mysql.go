@@ -100,6 +100,10 @@ var ctx, cancel = context.WithCancel(context.Background())
 func (p *Plugin) Start() {
 	log.Debugf("[%s] func Start", pluginName)
 
+	p.connMgr = newConnManager(
+		time.Duration(p.options.KeepAlive)*time.Second,
+		time.Duration(p.options.Timeout)*time.Second)
+
 	// Repeatedly check for unused connections and close them.
 	go func(ctx context.Context) {
 		ticker := time.NewTicker(10 * time.Second)
