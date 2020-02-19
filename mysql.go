@@ -93,7 +93,6 @@ type columnName = string
 // impl is the pointer to the plugin implementation.
 var impl Plugin
 
-var forever = make(chan struct{})
 var ctx, cancel = context.WithCancel(context.Background())
 
 // Start deleting unused connections
@@ -106,13 +105,13 @@ func (p *Plugin) Start() {
 
 	// Repeatedly check for unused connections and close them.
 	go func(ctx context.Context) {
-		ticker := time.NewTicker(10 * time.Second)
-		for {
+		for range time.Tick(10 * time.Second) {
 			select {
 			case <-ctx.Done():
-				ticker.Stop()
+				log.Debugf("[%s] stop goroutine", pluginName)
 				return
-			case <-ticker.C:
+			default:
+				log.Debugf("[%s] func Start, closeUnused()", pluginName)
 				if err := p.connMgr.closeUnused(); err != nil {
 					p.Errf("Error occurred while closing connection: %s", err.Error())
 				}
@@ -125,7 +124,6 @@ func (p *Plugin) Start() {
 func (p *Plugin) Stop() {
 	log.Debugf("[%s] func Stop", pluginName)
 
-	<-forever
 	cancel()
 }
 
