@@ -21,7 +21,6 @@ package mysql
 
 import (
 	"zabbix.com/pkg/conf"
-	"zabbix.com/pkg/log"
 	"zabbix.com/pkg/plugin"
 )
 
@@ -63,7 +62,7 @@ type PluginOptions struct {
 // Initializes configuration structures.
 func (p *Plugin) Configure(global *plugin.GlobalOptions, options interface{}) {
 
-	log.Debugf("[%s] Start configuring...", pluginName)
+	impl.Debugf("[%s] Start configuring...", pluginName)
 
 	if err := conf.Unmarshal(options, &p.options); err != nil {
 		p.Errf("cannot unmarshal configuration options: %s", err)
@@ -83,7 +82,7 @@ func (p *Plugin) Configure(global *plugin.GlobalOptions, options interface{}) {
 		}
 	}
 
-	log.Debugf("[%s] Configuring is complete.", pluginName)
+	impl.Debugf("[%s] Configuring is complete.", pluginName)
 }
 
 // Validate implements the Configurator interface.
@@ -92,7 +91,7 @@ func (p *Plugin) Validate(options interface{}) error {
 	var opts PluginOptions
 	var err error
 
-	log.Debugf("[%s] Start config validation...", pluginName)
+	impl.Debugf("[%s] Start config validation...", pluginName)
 
 	err = conf.Unmarshal(options, &opts)
 	if err != nil {
@@ -111,7 +110,7 @@ func (p *Plugin) Validate(options interface{}) error {
 		}
 	}
 
-	log.Debugf("[%s] Config is valid.", pluginName)
+	impl.Debugf("[%s] Config is valid.", pluginName)
 
 	return err
 }

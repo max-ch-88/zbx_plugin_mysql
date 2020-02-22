@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/go-sql-driver/mysql"
-	"zabbix.com/pkg/log"
 )
 
 const dbms = "mysql"
@@ -89,7 +88,7 @@ func (c *connManager) create(mysqlConf *mysql.Config) (*dbConn, error) {
 		connection:     conn,
 		lastTimeAccess: time.Now(),
 	}
-	log.Debugf("[%s] Created new connection: %s", pluginName, mysqlConf.Addr)
+	impl.Debugf("[%s] Created new connection: %s", pluginName, mysqlConf.Addr)
 
 	return c.connections[dsn], nil
 }
@@ -119,7 +118,7 @@ func (c *connManager) closeUnused() (err error) {
 			if err = conn.connection.Close(); err == nil {
 				delete(c.connections, dsn)
 				host, _ := mysql.ParseDSN(dsn)
-				log.Debugf("[%s] Closed the unused connection: %s", pluginName, host.Addr)
+				impl.Debugf("[%s] Closed the unused connection: %s", pluginName, host.Addr)
 			}
 		}
 	}
@@ -139,7 +138,7 @@ func (c *connManager) delete(mysqlConf *mysql.Config) (err error) {
 		if err = conn.connection.Close(); err == nil {
 			delete(c.connections, dsn)
 			host, _ := mysql.ParseDSN(dsn)
-			log.Debugf("[%s] Closed the killed connection: %s", pluginName, host.Addr)
+			impl.Debugf("[%s] Closed the killed connection: %s", pluginName, host.Addr)
 		}
 	}
 

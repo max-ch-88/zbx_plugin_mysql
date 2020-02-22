@@ -26,7 +26,6 @@ import (
 	"strings"
 	"time"
 
-	"zabbix.com/pkg/log"
 	"zabbix.com/pkg/plugin"
 )
 
@@ -97,7 +96,7 @@ var ctx, cancel = context.WithCancel(context.Background())
 
 // Start deleting unused connections
 func (p *Plugin) Start() {
-	log.Debugf("[%s] func Start", pluginName)
+	impl.Debugf("[%s] func Start", pluginName)
 
 	p.connMgr = newConnManager(
 		time.Duration(p.options.KeepAlive)*time.Second,
@@ -108,10 +107,10 @@ func (p *Plugin) Start() {
 		for range time.Tick(10 * time.Second) {
 			select {
 			case <-ctx.Done():
-				log.Debugf("[%s] stop goroutine", pluginName)
+				impl.Debugf("[%s] stop goroutine", pluginName)
 				return
 			default:
-				log.Debugf("[%s] func Start, closeUnused()", pluginName)
+				impl.Debugf("[%s] func Start, closeUnused()", pluginName)
 				if err := p.connMgr.closeUnused(); err != nil {
 					p.Errf("Error occurred while closing connection: %s", err.Error())
 				}
@@ -122,14 +121,15 @@ func (p *Plugin) Start() {
 
 // Stop deleting unused connections
 func (p *Plugin) Stop() {
-	log.Debugf("[%s] func Stop", pluginName)
+	impl.Debugf("[%s] func Stop", pluginName)
 
 	cancel()
+	p.connMgr = nil
 }
 
 // Export implements the Exporter interface.
 func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider) (result interface{}, err error) {
-	log.Debugf("[%s] func Export", pluginName)
+	impl.Debugf("[%s] func Export", pluginName)
 
 	if len(params) > keys[key].maxParams {
 		return nil, errorTooManyParameters
