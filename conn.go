@@ -28,8 +28,6 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
-const dbms = "mysql"
-
 type dbConn struct {
 	connection     *sql.DB
 	lastTimeAccess time.Time
@@ -75,7 +73,7 @@ func (c *connManager) create(mysqlConf *mysql.Config) (*dbConn, error) {
 		panic("connection already exists")
 	}
 
-	conn, err := sql.Open(dbms, dsn)
+	conn, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +86,7 @@ func (c *connManager) create(mysqlConf *mysql.Config) (*dbConn, error) {
 		connection:     conn,
 		lastTimeAccess: time.Now(),
 	}
-	impl.Debugf("[%s] Created new connection: %s", pluginName, mysqlConf.Addr)
+	impl.Debugf("Created new connection: %s", mysqlConf.Addr)
 
 	return c.connections[dsn], nil
 }
@@ -118,7 +116,7 @@ func (c *connManager) closeUnused() (err error) {
 			if err = conn.connection.Close(); err == nil {
 				delete(c.connections, dsn)
 				host, _ := mysql.ParseDSN(dsn)
-				impl.Debugf("[%s] Closed the unused connection: %s", pluginName, host.Addr)
+				impl.Debugf("Closed the unused connection: %s", host.Addr)
 			}
 		}
 	}
@@ -138,7 +136,7 @@ func (c *connManager) delete(mysqlConf *mysql.Config) (err error) {
 		if err = conn.connection.Close(); err == nil {
 			delete(c.connections, dsn)
 			host, _ := mysql.ParseDSN(dsn)
-			impl.Debugf("[%s] Closed the killed connection: %s", pluginName, host.Addr)
+			impl.Debugf("Closed the killed connection: %s", host.Addr)
 		}
 	}
 

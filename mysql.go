@@ -29,10 +29,7 @@ import (
 	"zabbix.com/pkg/plugin"
 )
 
-const (
-	pluginName = "Mysql"
-	pingFailed = "0"
-)
+const pingFailed = "0"
 
 type key struct {
 	query     string // SQL request text
@@ -96,7 +93,7 @@ var ctx, cancel = context.WithCancel(context.Background())
 
 // Start deleting unused connections
 func (p *Plugin) Start() {
-	impl.Debugf("[%s] func Start", pluginName)
+	impl.Debugf("func Start")
 
 	p.connMgr = newConnManager(
 		time.Duration(p.options.KeepAlive)*time.Second,
@@ -107,10 +104,10 @@ func (p *Plugin) Start() {
 		for range time.Tick(10 * time.Second) {
 			select {
 			case <-ctx.Done():
-				impl.Debugf("[%s] stop goroutine", pluginName)
+				impl.Debugf("stop goroutine")
 				return
 			default:
-				impl.Debugf("[%s] func Start, closeUnused()", pluginName)
+				impl.Debugf("func Start, closeUnused()")
 				if err := p.connMgr.closeUnused(); err != nil {
 					p.Errf("Error occurred while closing connection: %s", err.Error())
 				}
@@ -121,7 +118,7 @@ func (p *Plugin) Start() {
 
 // Stop deleting unused connections
 func (p *Plugin) Stop() {
-	impl.Debugf("[%s] func Stop", pluginName)
+	impl.Debugf("func Stop")
 
 	cancel()
 	p.connMgr = nil
@@ -129,7 +126,7 @@ func (p *Plugin) Stop() {
 
 // Export implements the Exporter interface.
 func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider) (result interface{}, err error) {
-	impl.Debugf("[%s] func Export", pluginName)
+	impl.Debugf("func Export")
 
 	if len(params) > keys[key].maxParams {
 		return nil, errorTooManyParameters
@@ -262,7 +259,7 @@ func getJSON(config *dbConn, keyProperties *key) (result interface{}, err error)
 
 // init registers metrics.
 func init() {
-	plugin.RegisterMetrics(&impl, pluginName,
+	plugin.RegisterMetrics(&impl, "Mysql",
 		"mysql.get_status_variables", "Values of global status variables.",
 		"mysql.ping", "If the DBMS responds it returns '1', and '0' otherwise.",
 		"mysql.version", "MySQL version.",
