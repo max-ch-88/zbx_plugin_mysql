@@ -93,7 +93,7 @@ var ctx, cancel = context.WithCancel(context.Background())
 
 // Start deleting unused connections
 func (p *Plugin) Start() {
-	impl.Debugf("func Start")
+	p.Debugf("func Start")
 
 	p.connMgr = newConnManager(
 		time.Duration(p.options.KeepAlive)*time.Second,
@@ -104,10 +104,10 @@ func (p *Plugin) Start() {
 		for range time.Tick(10 * time.Second) {
 			select {
 			case <-ctx.Done():
-				impl.Debugf("stop goroutine")
+				p.Debugf("stop goroutine")
 				return
 			default:
-				impl.Debugf("func Start, closeUnused()")
+				p.Debugf("func Start, closeUnused()")
 				if err := p.connMgr.closeUnused(); err != nil {
 					p.Errf("Error occurred while closing connection: %s", err.Error())
 				}
@@ -118,7 +118,7 @@ func (p *Plugin) Start() {
 
 // Stop deleting unused connections
 func (p *Plugin) Stop() {
-	impl.Debugf("func Stop")
+	p.Debugf("func Stop")
 
 	cancel()
 	p.connMgr = nil
@@ -126,7 +126,7 @@ func (p *Plugin) Stop() {
 
 // Export implements the Exporter interface.
 func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider) (result interface{}, err error) {
-	impl.Debugf("func Export")
+	p.Debugf("func Export")
 
 	if len(params) > keys[key].maxParams {
 		return nil, errorTooManyParameters

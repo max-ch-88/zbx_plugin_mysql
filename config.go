@@ -62,7 +62,7 @@ type PluginOptions struct {
 // Initializes configuration structures.
 func (p *Plugin) Configure(global *plugin.GlobalOptions, options interface{}) {
 
-	impl.Debugf("Start configuring...")
+	p.Debugf("Start configuring...")
 
 	if err := conf.Unmarshal(options, &p.options); err != nil {
 		p.Errf("cannot unmarshal configuration options: %s", err)
@@ -82,7 +82,7 @@ func (p *Plugin) Configure(global *plugin.GlobalOptions, options interface{}) {
 		}
 	}
 
-	impl.Debugf("Configuring is complete")
+	p.Debugf("Configuring is complete")
 }
 
 // Validate implements the Configurator interface.
@@ -91,7 +91,7 @@ func (p *Plugin) Validate(options interface{}) error {
 	var opts PluginOptions
 	var err error
 
-	impl.Debugf("Start config validation...")
+	p.Debugf("Start config validation...")
 
 	err = conf.Unmarshal(options, &opts)
 	if err != nil {
@@ -110,7 +110,7 @@ func (p *Plugin) Validate(options interface{}) error {
 		}
 	}
 
-	impl.Debugf("Config is valid")
+	p.Debugf("Config is valid")
 
 	return err
 }
