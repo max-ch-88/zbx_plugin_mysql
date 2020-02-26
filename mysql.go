@@ -23,7 +23,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"strings"
 	"time"
 
 	"zabbix.com/pkg/plugin"
@@ -227,11 +226,11 @@ func rows2JSON(rows *sql.Rows, keyProperties *key) (result interface{}, err erro
 		entry := make(map[columnName]string)
 
 		for i, col := range columns {
-			// For LLD JSON make keys in uppercase
-			if keyProperties.lld {
-				col = "{#" + strings.ToUpper(col) + "}"
+			if values[i] == nil {
+				entry[col] = ""
+			} else {
+				entry[col] = string(values[i].([]byte))
 			}
-			entry[col] = string(values[i].([]byte))
 		}
 
 		tableData = append(tableData, entry)
