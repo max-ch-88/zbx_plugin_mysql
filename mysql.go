@@ -101,12 +101,14 @@ func (p *Plugin) Start() {
 
 	// Repeatedly check for unused connections and close them.
 	go func(ctx context.Context) {
-		for range time.Tick(10 * time.Second) {
+		ticker := time.NewTicker(10 * time.Second)
+		for {
 			select {
 			case <-ctx.Done():
 				p.Debugf("stop goroutine")
+				ticker.Stop()
 				return
-			default:
+			case <-ticker.C:
 				p.Debugf("func Start, closeUnused()")
 				if err := p.connMgr.closeUnused(); err != nil {
 					p.Errf("Error occurred while closing connection: %s", err.Error())
