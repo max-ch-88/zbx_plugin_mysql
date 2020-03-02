@@ -59,7 +59,7 @@ var keys = map[string]key{
 		maxParams: 1,
 		json:      true,
 		lld:       true},
-	"mysql.dbsize": {query: "select sum(data_length + index_length) as size from information_schema.tables where table_schema=?",
+	"mysql.db.size": {query: "select sum(data_length + index_length) as size from information_schema.tables where table_schema=?",
 		minParams: 2,
 		maxParams: 2,
 		json:      false,
@@ -69,7 +69,7 @@ var keys = map[string]key{
 		maxParams: 1,
 		json:      true,
 		lld:       true},
-	"mysql.slave_status": {query: "show slave status",
+	"mysql.replication.get_slave_status": {query: "show slave status",
 		minParams: 2,
 		maxParams: 2,
 		json:      true,
@@ -266,7 +266,7 @@ func init() {
 		"mysql.ping", "If the DBMS responds it returns '1', and '0' otherwise.",
 		"mysql.version", "MySQL version.",
 		"mysql.db.discovery", "Databases discovery.",
-		"mysql.dbsize", "Database size in bytes.",
+		"mysql.db.size", "Database size in bytes.",
 		"mysql.replication.discovery", "Replication discovery.",
-		"mysql.slave_status", "Replication status.")
+		"mysql.replication.get_slave_status", "Replication status.")
 }
