@@ -164,7 +164,7 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 
 	keyProperties := keys[key]
 
-	if key == "mysql.dbsize" {
+	if key == "mysql.db.size" {
 		if len(params[1]) == 0 {
 			return nil, errorDBnameMissing
 		}
