@@ -181,7 +181,7 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 	}
 
 	if keyProperties.json {
-		return getJSON(conn, &keyProperties)
+		return getJSON(conn, key)
 	}
 
 	return getOne(conn, &keyProperties)
@@ -202,7 +202,7 @@ func getOne(config *dbConn, keyProperties *key, args ...interface{}) (result int
 	return string(col.([]byte)), nil
 }
 
-func rows2JSON(rows *sql.Rows, keyProperties *key) (result interface{}, err error) {
+func rows2data(rows *sql.Rows) (result []map[string]string, err error) {
 
 	columns, err := rows.Columns()
 	if err != nil {
@@ -237,26 +237,43 @@ func rows2JSON(rows *sql.Rows, keyProperties *key) (result interface{}, err erro
 		tableData = append(tableData, entry)
 	}
 
+	return tableData, nil
+}
+
+// Get a set of values in JSON format
+func getJSON(config *dbConn, key string) (result interface{}, err error) {
+
+	rows, err := config.connection.Query(keys[key].query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	tableData, err := rows2data(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	if key == "mysql.get_status_variables" {
+		m := make(map[string]string)
+		for _, j := range tableData {
+			m[j["Variable_name"]] = j["Value"]
+		}
+
+		jsonData, err := json.Marshal(m)
+		if err != nil {
+			return nil, err
+		}
+
+		return string(jsonData), nil
+	}
+
 	jsonData, err := json.Marshal(tableData)
 	if err != nil {
 		return nil, err
 	}
 
 	return string(jsonData), nil
-}
-
-// Get a set of values in JSON format
-func getJSON(config *dbConn, keyProperties *key) (result interface{}, err error) {
-
-	rows, err := config.connection.Query(keyProperties.query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	result, err = rows2JSON(rows, keyProperties)
-
-	return
 }
 
 // init registers metrics.
