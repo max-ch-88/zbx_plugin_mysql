@@ -105,6 +105,22 @@ func (c *connManager) get(mysqlConf *mysql.Config) (conn *dbConn, err error) {
 	return nil, errorConnectionNotFound
 }
 
+func (c *connManager) closeAllConn() (err error) {
+	c.connMutex.Lock()
+	defer c.connMutex.Unlock()
+
+	for dsn, conn := range c.connections {
+		if err = conn.connection.Close(); err == nil {
+			delete(c.connections, dsn)
+			host, _ := mysql.ParseDSN(dsn)
+			impl.Debugf("Closed the connection: %s", host.Addr)
+		}
+	}
+
+	// Return the last error only.
+	return
+}
+
 // CloseUnused closes each connection that has not been accessed at least within the keepalive interval.
 func (c *connManager) closeUnused() (err error) {
 

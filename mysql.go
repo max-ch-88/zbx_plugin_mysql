@@ -122,6 +122,7 @@ func (p *Plugin) Stop() {
 	p.Debugf("func Stop")
 
 	cancel()
+	p.connMgr.closeAllConn()
 	p.connMgr = nil
 }
 
