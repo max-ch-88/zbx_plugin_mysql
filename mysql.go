@@ -23,6 +23,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"zabbix.com/pkg/plugin"
@@ -254,23 +255,53 @@ func getJSON(config *dbConn, key string) (result interface{}, err error) {
 		return nil, err
 	}
 
-	if key == "mysql.get_status_variables" {
-		m := make(map[string]string)
-		for _, j := range tableData {
-			m[j["Variable_name"]] = j["Value"]
+	var jsonData []byte
+	switch key {
+	case "mysql.get_status_variables":
+		{
+			m := make(map[string]string)
+			for _, j := range tableData {
+				m[j["Variable_name"]] = j["Value"]
+			}
+
+			jsonData, err = json.Marshal(m)
+			if err != nil {
+				return nil, err
+			}
 		}
+	case "mysql.replication.discovery":
+		{
+			m := make([]map[string]string, 0)
+			for _, j := range tableData {
+				//m[0][j["Master_Host"]] = j["Value"]
+				fmt.Println(j)
+			}
 
-		jsonData, err := json.Marshal(m)
-		if err != nil {
-			return nil, err
+			jsonData, err = json.Marshal(m)
+			if err != nil {
+				return nil, err
+			}
 		}
+	case "mysql.replication.get_slave_status":
+		{
+			m := make(map[string]string)
+			for _, j := range tableData {
+				//m[0][j["Master_Host"]] = j["Value"]
+				fmt.Println(j)
+			}
 
-		return string(jsonData), nil
-	}
-
-	jsonData, err := json.Marshal(tableData)
-	if err != nil {
-		return nil, err
+			jsonData, err = json.Marshal(m)
+			if err != nil {
+				return nil, err
+			}
+		}
+	default:
+		{
+			jsonData, err = json.Marshal(tableData)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	return string(jsonData), nil
