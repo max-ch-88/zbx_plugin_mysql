@@ -282,16 +282,7 @@ func getJSON(config *dbConn, key string) (result interface{}, err error) {
 		}
 	case "mysql.replication.get_slave_status":
 		{
-			m := make(map[string]string)
-			for _, j := range tableData {
-				m = map[string]string{
-					"Slave_SQL_Running":     j["Slave_SQL_Running"],
-					"Slave_IO_Running":      j["Slave_IO_Running"],
-					"Seconds_Behind_Master": j["Seconds_Behind_Master"],
-				}
-			}
-
-			jsonData, err = json.Marshal(m)
+			jsonData, err = json.Marshal(tableData[0])
 			if err != nil {
 				return nil, err
 			}
