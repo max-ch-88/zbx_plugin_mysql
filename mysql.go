@@ -23,7 +23,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"zabbix.com/pkg/plugin"
@@ -273,8 +272,7 @@ func getJSON(config *dbConn, key string) (result interface{}, err error) {
 		{
 			m := make([]map[string]string, 0)
 			for _, j := range tableData {
-				//m[0][j["Master_Host"]] = j["Value"]
-				fmt.Println(j)
+				m = append(m, map[string]string{"Master_Host": j["Master_Host"]})
 			}
 
 			jsonData, err = json.Marshal(m)
@@ -286,8 +284,11 @@ func getJSON(config *dbConn, key string) (result interface{}, err error) {
 		{
 			m := make(map[string]string)
 			for _, j := range tableData {
-				//m[0][j["Master_Host"]] = j["Value"]
-				fmt.Println(j)
+				m = map[string]string{
+					"Slave_SQL_Running":     j["Slave_SQL_Running"],
+					"Slave_IO_Running":      j["Slave_IO_Running"],
+					"Seconds_Behind_Master": j["Seconds_Behind_Master"],
+				}
 			}
 
 			jsonData, err = json.Marshal(m)
