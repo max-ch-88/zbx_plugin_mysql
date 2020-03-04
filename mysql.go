@@ -59,7 +59,7 @@ var keys = map[string]key{
 		maxParams: 1,
 		json:      true,
 		lld:       true},
-	"mysql.db.size": {query: "select sum(data_length + index_length) as size from information_schema.tables where table_schema=?",
+	"mysql.db.size": {query: "select coalesce(sum(data_length + index_length),0) from information_schema.tables where table_schema=?",
 		minParams: 2,
 		maxParams: 2,
 		json:      false,
@@ -173,9 +173,6 @@ func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider)
 		if err != nil {
 			return
 		}
-		if result == "" {
-			return nil, errorUnknownDBname
-		}
 
 		return
 	}
@@ -193,10 +190,6 @@ func getOne(config *dbConn, keyProperties *key, args ...interface{}) (result int
 	var col interface{}
 	if err = config.connection.QueryRow(keyProperties.query, args...).Scan(&col); err != nil {
 		return
-	}
-
-	if col == nil {
-		return "", nil
 	}
 
 	return string(col.([]byte)), nil
