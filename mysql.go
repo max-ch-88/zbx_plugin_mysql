@@ -41,37 +41,37 @@ type key struct {
 var keys = map[string]key{
 	"mysql.get_status_variables": {query: "show global status",
 		minParams: 1,
-		maxParams: 1,
+		maxParams: 3,
 		json:      true,
 		lld:       false},
 	"mysql.ping": {query: "select '1'",
 		minParams: 1,
-		maxParams: 1,
+		maxParams: 3,
 		json:      false,
 		lld:       false},
 	"mysql.version": {query: "select version()",
 		minParams: 1,
-		maxParams: 1,
+		maxParams: 3,
 		json:      false,
 		lld:       false},
 	"mysql.db.discovery": {query: "show databases",
 		minParams: 1,
-		maxParams: 1,
+		maxParams: 3,
 		json:      true,
 		lld:       true},
 	"mysql.db.size": {query: "select coalesce(sum(data_length + index_length),0) from information_schema.tables where table_schema=?",
-		minParams: 2,
-		maxParams: 2,
+		minParams: 4,
+		maxParams: 4,
 		json:      false,
 		lld:       false},
 	"mysql.replication.discovery": {query: "show slave status",
 		minParams: 1,
-		maxParams: 1,
+		maxParams: 3,
 		json:      true,
 		lld:       true},
 	"mysql.replication.get_slave_status": {query: "show slave status",
-		minParams: 2,
-		maxParams: 2,
+		minParams: 4,
+		maxParams: 4,
 		json:      true,
 		lld:       false},
 }
@@ -130,21 +130,43 @@ func (p *Plugin) Stop() {
 func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider) (result interface{}, err error) {
 	p.Debugf("func Export")
 
-	if len(params) > keys[key].maxParams {
+	paramsSize := len(params)
+	username := ""
+	password := ""
+
+	if paramsSize > keys[key].maxParams {
 		return nil, errorTooManyParameters
 	}
 
-	if len(params) < keys[key].minParams {
+	if paramsSize < keys[key].minParams {
 		return nil, errorTooFewParameters
 	}
 
+	if paramsSize >= 2 {
+		username = params[1]
+	}
+
+	if paramsSize >= 3 {
+		password = params[2]
+	}
+
 	session, ok := p.options.Sessions[params[0]]
+	if ok && (len(username) > 0 || len(password) > 0) {
+		return nil, errorUserPassword
+	}
+
 	if !ok {
 		url := params[0]
 		if len(url) == 0 {
 			url = p.options.Uri
 		}
-		session = &Session{Uri: url, User: p.options.User, Password: p.options.Password}
+		if len(username) == 0 {
+			username = p.options.User
+		}
+		if len(password) == 0 {
+			password = p.options.Password
+		}
+		session = &Session{Uri: url, User: username, Password: password}
 	}
 
 	mysqlConf, err := p.getConfigDSN(session)
