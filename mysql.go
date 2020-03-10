@@ -70,7 +70,7 @@ var keys = map[string]key{
 		json:      true,
 		lld:       true},
 	"mysql.replication.get_slave_status": {query: "show slave status",
-		minParams: 4,
+		minParams: 1,
 		maxParams: 4,
 		json:      true,
 		lld:       false},
@@ -297,9 +297,11 @@ func getJSON(config *dbConn, key string) (result interface{}, err error) {
 		}
 	case "mysql.replication.get_slave_status":
 		{
-			jsonData, err = json.Marshal(tableData[0])
-			if err != nil {
-				return nil, err
+			if len(tableData) > 0 {
+				jsonData, err = json.Marshal(tableData[0])
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 	default:
