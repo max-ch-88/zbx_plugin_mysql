@@ -297,11 +297,12 @@ func getJSON(config *dbConn, key string) (result interface{}, err error) {
 		}
 	case "mysql.replication.get_slave_status":
 		{
-			if len(tableData) > 0 {
-				jsonData, err = json.Marshal(tableData[0])
-				if err != nil {
-					return nil, err
-				}
+			if len(tableData) == 0 {
+				return nil, errorNoReplication
+			}
+			jsonData, err = json.Marshal(tableData[0])
+			if err != nil {
+				return nil, err
 			}
 		}
 	default:

@@ -29,10 +29,11 @@ const (
 	errorTooManyParameters  = zabbixError("Too many parameters")
 	errorTooFewParameters   = zabbixError("Too few parameters")
 	errorDBnameMissing      = zabbixError("There is no database name as the fourth parameter")
-	errorParameterNotURI    = zabbixError("The first parameter is not URI or session.")
-	errorConnectionNotFound = zabbixError("Active connection is not found.")
-	errorConnectionKilled   = zabbixError("Connection was killed.")
+	errorParameterNotURI    = zabbixError("The first parameter is not URI or session")
+	errorConnectionNotFound = zabbixError("Active connection is not found")
+	errorConnectionKilled   = zabbixError("Connection was killed")
 	errorUserPassword       = zabbixError("The username and password cannot be used with the session name")
+	errorNoReplication      = zabbixError("Replication is not configured")
 )
 
 // formatZabbixError formats a given error text. It capitalizes the first letter and adds a dot to the end.
